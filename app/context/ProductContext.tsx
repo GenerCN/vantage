@@ -1,17 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-// 1. Datos iniciales (sacados de tu index)
+// 1. Datos iniciales 
 const productosIniciales: any = [];
 
-// 2. Creamos la "memoria compartida"
+// 2. Creamos la memoria compartida
 const ProductContext = createContext<any>(null);
 
-// 3. Este componente envuelve nuestra app y guarda el estado
+// 3. Este componente guarda el estado
 export function ProductProvider({ children }: { children: React.ReactNode }) {
   const [productos, setProductos] = useState<any[]>(productosIniciales);
 
-  // 👉 EFECTO 1: Carga los datos al iniciar (Asegúrate de haber importado useEffect arriba)
+  //  Carga los datos al iniciar  
   useEffect(() => {
     const cargarProductos = async () => {
       try {
@@ -26,7 +26,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     cargarProductos();
   }, []);
 
-  // 👉 EFECTO 2: Guarda automáticamente cada que cambien los productos
+  // Guarda automáticamente cada que cambien los productos
   useEffect(() => {
     const guardarProductos = async () => {
       try {
