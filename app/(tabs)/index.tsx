@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   contentContainer: { padding: 24 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, flexWrap: 'wrap', gap: 15 },
   title: { fontSize: 28, fontWeight: 'bold', color: '#0f172a' },
-  subtitle: { fontSize: 16, color: '#64748b', marginTop: 4 },
+  subtitle: { fontSize: 16, marginTop: 4 },
   btnAgregar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#000010', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, gap: 8 },
   btnAgregarText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 20 },
