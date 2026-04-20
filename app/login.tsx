@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { styles } from "../styles/StyleLogin";
 
@@ -12,15 +12,9 @@ export default function LoginScreen() {
   const router = useRouter();
 
   const manejarLogin = () => {
-    // Validamos que los campos no estén vacíos
-    if (email === "" || password === "") {
-      Alert.alert("Error", "Por favor ingresa datos en ambos campos.");
-      return;
-    }
-
     // Si todo está bien, lo mandamos a la pantalla de Home
     console.log("Login exitoso con:", email);
-    router.replace("/home");
+    router.replace("/(tabs)/home");
   };
 
   return (
@@ -52,6 +46,13 @@ export default function LoginScreen() {
 
       <TouchableOpacity style={styles.button} onPress={manejarLogin}>
         <Text style={styles.buttonText}>Entrar</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.registerButton}
+        onPress={() => router.push("/register")}
+      >
+        <Text style={styles.registerButtonText}>Crear Cuenta</Text>
       </TouchableOpacity>
     </View>
   );

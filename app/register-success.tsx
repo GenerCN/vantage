@@ -30,9 +30,9 @@ export default function RegisterSuccessScreen() {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.replace("/login")} // Lo mandamos al login sin dejar que regrese aquí
+        onPress={() => router.replace("/(tabs)/home")} // Lo mandamos al home después del registro exitoso
       >
-        <Text style={styles.buttonText}>Ir al Login</Text>
+        <Text style={styles.buttonText}>Ir al Home</Text>
       </TouchableOpacity>
     </View>
   );

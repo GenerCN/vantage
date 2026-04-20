@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
-import { styles } from "../../styles/StyleIndex";
+import { styles } from "../styles/StyleIndex";
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -10,7 +10,6 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
       <Image
-        source={require("../../assets/images/dashboard_24dp_000000.svg")}
         style={[styles.mainIcon, { width: 80, height: 80 }]}
         contentFit="contain"
       />

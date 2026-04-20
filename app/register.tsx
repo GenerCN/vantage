@@ -1,12 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-} from "react-native";
+import { ScrollView, Text, TextInput, TouchableOpacity } from "react-native";
 
 // Importamos los estilos desde la carpeta independiente
 import { styles } from "../styles/StyleRegister";
@@ -23,36 +17,18 @@ export default function RegisterScreen() {
   const [employeeNumber, setEmployeeNumber] = useState("");
 
   const manejarRegistro = () => {
-    // 1. Validar que los campos obligatorios no estén vacíos
-    if (!firstName || !firstLastName || !password || !employeeNumber) {
-      Alert.alert(
-        "Error",
-        "Por favor llena todos los campos obligatorios (*).",
-      );
-      return;
-    }
-
-    // 2. Validar que el número de empleado sea exactamente 0000
-    if (employeeNumber !== "0000") {
-      Alert.alert(
-        "Acceso Denegado",
-        "El número de empleado no es válido para el registro.",
-      );
-      return;
-    }
-
-    // 3. Generar el nombre de usuario
+    // Generar el nombre de usuario
     const parteApellido = firstLastName.substring(0, 3).toLowerCase();
     const parteNombre = firstName.substring(0, 3).toLowerCase();
     const usuarioGenerado = `${parteApellido}${parteNombre}`;
 
-    // 4. Juntar el nombre completo (quitando espacios extra si los segundos nombres están vacíos)
+    // Juntar el nombre completo (quitando espacios extra si los segundos nombres están vacíos)
     const nombreCompleto =
       `${firstName} ${middleName} ${firstLastName} ${secondLastName}`
         .replace(/\s+/g, " ")
         .trim();
 
-    // 5. Navegar a la pantalla de éxito y enviarle los datos
+    // Navegar a la pantalla de éxito y enviarle los datos
     router.replace({
       pathname: "/register-success",
       params: {
@@ -122,8 +98,11 @@ export default function RegisterScreen() {
         <Text style={styles.buttonText}>Registrar y Generar Usuario</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>Cancelar y regresar</Text>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.push("/login")}
+      >
+        <Text style={styles.backButtonText}>Volver al Login</Text>
       </TouchableOpacity>
     </ScrollView>
   );

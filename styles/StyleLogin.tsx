@@ -46,4 +46,19 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
   },
+  registerButton: {
+    backgroundColor: "#transparent",
+    borderWidth: 2,
+    borderColor: "#007AFF",
+    height: 55,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  registerButtonText: {
+    color: "#007AFF",
+    fontSize: 18,
+    fontWeight: "600",
+  },
 });
