@@ -104,14 +104,14 @@ export default function HomeScreen() {
                   <Text style={styles.detailLabel}>Stock actual:</Text>
                   <View style={[styles.badgeStock, isStockLow ? styles.badgeStockAgotado : styles.badgeStockOk]}>
                     <Text style={[styles.detailValue, isStockLow ? styles.textRed : styles.textGreen]}>
-                      {item.stockActual} unidad
+                      {item.stockActual} {item.unidad}
                     </Text>
                   </View>
                 </View>
                 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Stock mínimo:</Text>
-                  <Text style={styles.detailValue}>{item.stockMinimo} unidad</Text>
+                  <Text style={styles.detailValue}>{item.stockMinimo} {item.unidad}</Text>
                 </View>
 
                 <View style={styles.detailRow}>
