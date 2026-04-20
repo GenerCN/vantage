@@ -57,22 +57,52 @@ export default function AgregarProductoModal() {
   };
 
   const handleSoloNumeros = (texto: string, setter: (val: string) => void) => {
-    if (/[^0-9.]/.test(texto) || texto.includes('-')) {
-      mostrarError('Entrada no admitida. Solo ingresa números positivos.');
-      setter(texto.replace(/[^0-9.]/g, ''));
-    } else {
-      setter(texto);
+    const textoLimpio = texto.replace(/[^0-9.]/g, '');
+    const partes = textoLimpio.split('.');
+    const textoNormalizado =
+      partes.length > 1 ? `${partes[0]}.${partes.slice(1).join('')}` : textoLimpio;
+
+    if (texto !== textoNormalizado || texto.includes('-') || (texto.match(/\./g) || []).length > 1) {
+      mostrarError('Entrada no admitida. Solo ingresa números positivos con un único decimal.');
     }
+
+    if (/^\d*\.?\d*$/.test(textoNormalizado)) {
+      setter(textoNormalizado);
+    }
+  };
+
+  const convertirNumeroPositivo = (texto: string, nombreCampo: string) => {
+    const valor = texto.trim();
+
+    if (valor === '') {
+      return 0;
+    }
+
+    if (!/^(?:\d+\.?\d*|\.\d+)$/.test(valor)) {
+      mostrarError(`El campo ${nombreCampo} debe contener un número positivo válido.`);
+      return null;
+    }
+
+    const numero = Number(valor);
+
+    if (Number.isNaN(numero)) {
+      mostrarError(`El campo ${nombreCampo} debe contener un número positivo válido.`);
+      return null;
+    }
+
+    return numero;
   };
 
   //  Crear o Editar
   const handleGuardar = () => {
-    // 1. Forzamos la conversión a número justo aquí para evitar errores
-    const sActual = Number(stockActual) || 0;
-    const pPrecio = Number(precio) || 0;
-    const pPeso = Number(pesoUnidad) || 0;
-    const sMinimo = Number(stockMinimo) || 0;
+    const sActual = convertirNumeroPositivo(stockActual, 'Stock actual');
+    const pPrecio = convertirNumeroPositivo(precio, 'Precio');
+    const pPeso = convertirNumeroPositivo(pesoUnidad, 'Peso por unidad');
+    const sMinimo = convertirNumeroPositivo(stockMinimo, 'Stock mínimo');
 
+    if (sActual === null || pPrecio === null || pPeso === null || sMinimo === null) {
+      return;
+    }
     const datosProducto = {
       nombre: nombre,
       sku: sku,
