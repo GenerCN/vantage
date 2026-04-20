@@ -176,7 +176,7 @@ export default function AgregarProductoModal() {
               style={styles.input} 
               placeholder="unidad / kg" 
               value={unidad} 
-              onChangeText={(t) => handleSoloNumeros(t, setUnidad)}
+              onChangeText={(t) => setUnidad(t.replace(/[^a-zA-ZÀ-ÿ0-9\s/.-]/g, ''))}
             />
           </View>
           <View style={styles.col}>
