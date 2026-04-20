@@ -40,7 +40,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
   // Funciones globales para modificar la lista
   const agregarProducto = (producto: any) => {
-    setProductos([...productos, producto]);
+    setProductos((prev) => [...prev, producto]);
   };
 
   const eliminarProducto = (id: string) => {
