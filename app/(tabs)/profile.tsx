@@ -1,20 +1,15 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SectionCard }   from '@/components/ui/SectionCard';
+import { ThemedText }    from '@/components/themed-text';
+import { ThemedView }    from '@/components/themed-view';
+import { Colors, Fonts, T } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
+// ─── SettingRow ───────────────────────────────────────────────────────────────
 type RowProps = {
   icon: keyof typeof MaterialIcons.glyphMap;
   title: string;
@@ -22,369 +17,129 @@ type RowProps = {
   rightText?: string;
   hasSwitch?: boolean;
   switchValue?: boolean;
-  onSwitchChange?: (value: boolean) => void;
+  onSwitchChange?: (v: boolean) => void;
   onPress?: () => void;
   isLast?: boolean;
   iconBg: string;
   iconColor: string;
-  textMuted: string;
-  separatorColor: string;
 };
 
-function SettingRow({
-  icon,
-  title,
-  subtitle,
-  rightText,
-  hasSwitch,
-  switchValue,
-  onSwitchChange,
-  onPress,
-  isLast,
-  iconBg,
-  iconColor,
-  textMuted,
-  separatorColor,
-}: RowProps) {
-  const rowStyle: StyleProp<ViewStyle> = [
-    styles.row,
-    !isLast && { borderBottomColor: separatorColor, borderBottomWidth: 1 },
-  ];
-
+function SettingRow({ icon, title, subtitle, rightText, hasSwitch, switchValue, onSwitchChange, onPress, isLast, iconBg, iconColor }: RowProps) {
+  const rowStyle: StyleProp<ViewStyle> = [styles.row, !isLast && { borderBottomColor: T.separator, borderBottomWidth: 1 }];
   return (
-    <Pressable
-      style={rowStyle}
-      onPress={onPress}
-      disabled={!onPress}
-      android_ripple={{ color: "#00000010" }}
-    >
+    <Pressable style={rowStyle} onPress={onPress} disabled={!onPress} android_ripple={{ color: '#00000010' }}>
       <View style={[styles.rowIconWrap, { backgroundColor: iconBg }]}>
         <MaterialIcons name={icon} size={18} color={iconColor} />
       </View>
-
       <View style={styles.rowTextWrap}>
-        <ThemedText type="defaultSemiBold" style={styles.rowTitle}>
-          {title}
-        </ThemedText>
-        {subtitle ? (
-          <ThemedText style={[styles.rowSubtitle, { color: textMuted }]}>
-            {subtitle}
-          </ThemedText>
-        ) : null}
+        <ThemedText type="defaultSemiBold" style={styles.rowTitle}>{title}</ThemedText>
+        {subtitle ? <ThemedText style={[styles.rowSubtitle, { color: T.textSecondary }]}>{subtitle}</ThemedText> : null}
       </View>
-
       {hasSwitch ? (
-        <Switch
-          value={switchValue}
-          onValueChange={onSwitchChange}
-          trackColor={{ false: "#B9C2CC", true: iconColor }}
-          thumbColor="#FFFFFF"
-        />
+        <Switch value={switchValue} onValueChange={onSwitchChange} trackColor={{ false: T.border, true: iconColor }} thumbColor="#fff" />
       ) : (
-        <View style={styles.rowRightWrap}>
-          {rightText ? (
-            <ThemedText style={{ color: textMuted }}>{rightText}</ThemedText>
-          ) : null}
-          <MaterialIcons name="chevron-right" size={20} color={textMuted} />
+        <View style={styles.rowRight}>
+          {rightText ? <ThemedText style={{ color: T.textMuted }}>{rightText}</ThemedText> : null}
+          <MaterialIcons name="chevron-right" size={20} color={T.textMuted} />
         </View>
       )}
     </Pressable>
   );
 }
 
+// ─── Pantalla ──────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const colorScheme = useColorScheme() ?? "light";
-  const palette = Colors[colorScheme];
-  const isDark = colorScheme === "dark";
+  const colorScheme = useColorScheme() ?? 'light';
+  const palette     = Colors[colorScheme];
+  const isDark      = colorScheme === 'dark';
 
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(false);
-  const [marketingEmails, setMarketingEmails] = useState(false);
-  const [syncOnMobileData, setSyncOnMobileData] = useState(true);
-  const [faceIdLogin, setFaceIdLogin] = useState(true);
-  const [showActivityStatus, setShowActivityStatus] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
+  const [pushNotif,    setPushNotif]    = useState(true);
+  const [emailNotif,   setEmailNotif]   = useState(false);
+  const [syncMobile,   setSyncMobile]   = useState(true);
+  const [faceId,       setFaceId]       = useState(true);
 
   const ui = {
-    card: isDark ? "#1D232B" : "#F7F9FC",
-    cardStrong: isDark ? "#24303D" : "#EAF3FF",
-    stroke: isDark ? "#2F3A46" : "#DFE5EE",
-    muted: isDark ? "#A5AFB8" : "#5A6673",
-    primary: isDark ? "#61B4FF" : "#0A7EA4",
-    success: isDark ? "#57D18C" : "#159A58",
-    danger: isDark ? "#FF8080" : "#C73A3A",
+    primary:  isDark ? '#61B4FF'  : T.primary,
+    success:  isDark ? '#57D18C'  : T.success,
+    danger:   isDark ? '#FF8080'  : T.danger,
+    accent:   isDark ? '#C7B7FF'  : '#5E49C8',
+    accentBg: isDark ? '#28224A'  : '#E9E4FF',
+    primaryBg:isDark ? '#09304A'  : T.primaryLight,
+    successBg:isDark ? '#193320'  : T.successBg,
   };
 
   return (
     <ThemedView style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.headerTopRow}>
-          <ThemedText type="title" style={styles.pageTitle}>
-            Ajustes
-          </ThemedText>
-          <ThemedText style={{ color: ui.muted }}>Perfil</ThemedText>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+        <View style={styles.headerRow}>
+          <ThemedText type="title" style={styles.pageTitle}>Ajustes</ThemedText>
+          <ThemedText style={{ color: T.textSecondary }}>Perfil</ThemedText>
         </View>
 
-        <View
-          style={[
-            styles.profileCard,
-            { backgroundColor: ui.cardStrong, borderColor: ui.stroke },
-          ]}
-        >
+        {/* Tarjeta de perfil */}
+        <SectionCard style={{ flexDirection: 'row', alignItems: 'center', gap: T.md }}>
           <View style={[styles.avatar, { backgroundColor: ui.primary }]}>
             <ThemedText style={styles.avatarText}>GA</ThemedText>
           </View>
-
-          <View style={styles.profileInfo}>
-            <ThemedText type="subtitle" style={styles.profileName}>
-              Gener Admin
-            </ThemedText>
-            <ThemedText style={{ color: ui.muted }}>
-              gener@example.com
-            </ThemedText>
+          <View style={{ flex: 1 }}>
+            <ThemedText type="subtitle" style={styles.profileName}>Gener Admin</ThemedText>
+            <ThemedText style={{ color: T.textSecondary }}>gener@example.com</ThemedText>
           </View>
-
-          <Pressable style={[styles.editButton, { borderColor: ui.stroke }]}>
+          <Pressable style={[styles.editBtn, { borderColor: T.border }]}>
             <MaterialIcons name="edit" size={18} color={palette.text} />
           </Pressable>
-        </View>
+        </SectionCard>
 
-        <View
-          style={[
-            styles.sectionCard,
-            { backgroundColor: ui.card, borderColor: ui.stroke },
-          ]}
-        >
-          <ThemedText style={styles.sectionTitle}>General</ThemedText>
-          <SettingRow
-            icon="public"
-            title="Región"
-            subtitle="Latinoamérica"
-            rightText="MX"
-            iconBg={isDark ? "#09304A" : "#D9EDF9"}
-            iconColor={ui.primary}
-            textMuted={ui.muted}
-            separatorColor={ui.stroke}
-          />
-          <SettingRow
-            icon="sync"
-            title="Sincronizar con datos móviles"
-            subtitle="Mantén tus datos actualizados fuera de Wi-Fi"
-            hasSwitch
-            switchValue={syncOnMobileData}
-            onSwitchChange={setSyncOnMobileData}
-            isLast
-            iconBg={isDark ? "#09304A" : "#D9EDF9"}
-            iconColor={ui.primary}
-            textMuted={ui.muted}
-            separatorColor={ui.stroke}
-          />
-        </View>
+        {/* General */}
+        <SectionCard style={{ paddingVertical: T.sm }}>
+          <ThemedText style={[styles.sectionTitle, { fontFamily: Fonts?.rounded }]}>General</ThemedText>
+          <SettingRow icon="public" title="Región" subtitle="Latinoamérica" rightText="MX" iconBg={ui.primaryBg} iconColor={ui.primary} />
+          <SettingRow icon="sync"   title="Sincronizar con datos móviles" subtitle="Mantén tus datos actualizados" hasSwitch switchValue={syncMobile} onSwitchChange={setSyncMobile} isLast iconBg={ui.primaryBg} iconColor={ui.primary} />
+        </SectionCard>
 
-        <View
-          style={[
-            styles.sectionCard,
-            { backgroundColor: ui.card, borderColor: ui.stroke },
-          ]}
-        >
-          <ThemedText style={styles.sectionTitle}>Notificaciones</ThemedText>
-          <SettingRow
-            icon="notifications-active"
-            title="Push"
-            subtitle="Alertas en tiempo real"
-            hasSwitch
-            switchValue={pushNotifications}
-            onSwitchChange={setPushNotifications}
-            iconBg={isDark ? "#193320" : "#DEF5E7"}
-            iconColor={ui.success}
-            textMuted={ui.muted}
-            separatorColor={ui.stroke}
-          />
-          <SettingRow
-            icon="mail"
-            title="Correo importante"
-            subtitle="Resumenes semanales y actividad"
-            hasSwitch
-            switchValue={emailNotifications}
-            onSwitchChange={setEmailNotifications}
-            iconBg={isDark ? "#193320" : "#DEF5E7"}
-            iconColor={ui.success}
-            textMuted={ui.muted}
-            separatorColor={ui.stroke}
-          />
-        </View>
+        {/* Notificaciones */}
+        <SectionCard style={{ paddingVertical: T.sm }}>
+          <ThemedText style={[styles.sectionTitle, { fontFamily: Fonts?.rounded }]}>Notificaciones</ThemedText>
+          <SettingRow icon="notifications-active" title="Push" subtitle="Alertas en tiempo real" hasSwitch switchValue={pushNotif} onSwitchChange={setPushNotif} iconBg={ui.successBg} iconColor={ui.success} />
+          <SettingRow icon="mail" title="Correo importante" subtitle="Resúmenes semanales y actividad" hasSwitch switchValue={emailNotif} onSwitchChange={setEmailNotif} isLast iconBg={ui.successBg} iconColor={ui.success} />
+        </SectionCard>
 
-        <View
-          style={[
-            styles.sectionCard,
-            { backgroundColor: ui.card, borderColor: ui.stroke },
-          ]}
-        >
-          <ThemedText style={styles.sectionTitle}>
-            Apariencia y soporte
-          </ThemedText>
-          <SettingRow
-            icon="palette"
-            title="Tema"
-            subtitle="Sincronizado con el sistema"
-            rightText="Automático"
-            iconBg={isDark ? "#28224A" : "#E9E4FF"}
-            iconColor={isDark ? "#C7B7FF" : "#5E49C8"}
-            textMuted={ui.muted}
-            separatorColor={ui.stroke}
-          />
-          <SettingRow
-            icon="help"
-            title="Centro de ayuda"
-            subtitle="Preguntas frecuentes y soporte"
-            rightText="Abrir"
-            iconBg={isDark ? "#28224A" : "#E9E4FF"}
-            iconColor={isDark ? "#C7B7FF" : "#5E49C8"}
-            textMuted={ui.muted}
-            separatorColor={ui.stroke}
-            isLast
-          />
-        </View>
+        {/* Apariencia */}
+        <SectionCard style={{ paddingVertical: T.sm }}>
+          <ThemedText style={[styles.sectionTitle, { fontFamily: Fonts?.rounded }]}>Apariencia y soporte</ThemedText>
+          <SettingRow icon="palette"  title="Tema"            subtitle="Sincronizado con el sistema" rightText="Automático" iconBg={ui.accentBg} iconColor={ui.accent} />
+          <SettingRow icon="help"     title="Centro de ayuda" subtitle="Preguntas frecuentes"         rightText="Abrir"      iconBg={ui.accentBg} iconColor={ui.accent} isLast />
+        </SectionCard>
 
-        <Pressable
-          style={[
-            styles.logoutButton,
-            {
-              borderColor: ui.danger,
-              backgroundColor: isDark ? "#2A1B1B" : "#FFF2F2",
-            },
-          ]}
-        >
-          <MaterialIcons name="logout" size={18} color={ui.danger} />
-          <ThemedText style={[styles.logoutText, { color: ui.danger }]}>
-            Cerrar sesión
-          </ThemedText>
-        </Pressable>
+        <PrimaryButton
+          label="Cerrar sesión"
+          onPress={() => {}}
+          variant="outline"
+          style={[styles.logoutBtn, { borderColor: ui.danger }]}
+        />
+
       </ScrollView>
     </ThemedView>
   );
 }
 
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 22,
-    paddingBottom: 36,
-    gap: 16,
-  },
-  headerTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  pageTitle: {
-    fontFamily: Fonts.rounded,
-    fontSize: 34,
-  },
-  profileCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  avatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 20,
-  },
-  profileInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  profileName: {
-    lineHeight: 26,
-  },
-  planBadge: {
-    alignSelf: "flex-start",
-    marginTop: 4,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  planBadgeText: {
-    fontWeight: "700",
-    fontSize: 12,
-  },
-  editButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sectionCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.rounded,
-    fontSize: 20,
-    marginVertical: 8,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 11,
-    gap: 10,
-  },
-  rowIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  rowTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  rowTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  rowSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  rowRightWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  logoutButton: {
-    borderWidth: 1,
-    borderRadius: 14,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 6,
-  },
-  logoutText: {
-    fontWeight: "700",
-  },
+  screen:       { flex: 1 },
+  scrollContent:{ paddingHorizontal: T.lg + 2, paddingTop: T.xxl, paddingBottom: 36, gap: T.md },
+  headerRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pageTitle:    { fontSize: T.fontTitle, fontWeight: T.weightBold },
+  avatar:       { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  avatarText:   { color: '#fff', fontWeight: T.weightBold, fontSize: T.fontXl },
+  profileName:  { lineHeight: 26 },
+  editBtn:      { width: 36, height: 36, borderRadius: T.radiusMd, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { fontSize: T.fontXl, marginVertical: T.sm },
+  row:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: T.sm },
+  rowIconWrap:  { width: 32, height: 32, borderRadius: T.radiusMd, justifyContent: 'center', alignItems: 'center' },
+  rowTextWrap:  { flex: 1, gap: 2 },
+  rowTitle:     { fontSize: T.fontBase, lineHeight: 20 },
+  rowSubtitle:  { fontSize: T.fontSm + 1, lineHeight: 18 },
+  rowRight:     { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  logoutBtn:    { marginTop: T.xs },
 });
