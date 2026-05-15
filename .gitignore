@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+pnpm-lock.yaml
+.npmrc
+
 app-example
 
 # generated native folders
