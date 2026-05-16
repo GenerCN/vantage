@@ -9,47 +9,11 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
 # Environment variables (credenciales sensibles)
 .env*.local
 .env*.secrets
 # Pero SÍ subimos el template de ejemplo
 !.env.example
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-pnpm-lock.yaml
-.npmrc
-
-app-example
-
-# generated native folders
-/ios
-/android
 
 # SQLite Database Files (Local)
 *.db
@@ -57,25 +21,22 @@ app-example
 *.sqlite
 *.sqlite3
 
-# Logs
-*.log
-*.logs
-/logs/
+# TypeScript
+*.tsbuildinfo
 
-# Turbo cache
-.turbo/
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
-# Windows
+# Sistema operativo
+.DS_Store
 Thumbs.db
 
-# Temporary files
-tmp/
-temp/
-.cache/
+# pnpm
+pnpm-lock.yaml
+.npmrc
 
-# IDE
-.vscode/settings.json
-.idea/
-
-# pnpm specific
-.pnpm-debug.log
+# generated native folders
+/ios
+/android
