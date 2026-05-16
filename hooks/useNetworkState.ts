@@ -1,13 +1,5 @@
 import { useEffect, useState } from 'react';
-
-// Importar NetInfo con fallback
-let NetInfo: any = null;
-try {
-  NetInfo = require('react-native-netinfo').default;
-} catch (e) {
-  console.warn('⚠️  react-native-netinfo no disponible, usando fallback');
-  NetInfo = null;
-}
+import NetInfo from '@react-native-community/netinfo';
 
 export interface NetworkState {
   isConnected: boolean;
