@@ -21,6 +21,12 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+# Environment variables (credenciales sensibles)
+.env*.local
+.env*.secrets
+# Pero SÍ subimos el template de ejemplo
+!.env.example
+
 # debug
 npm-debug.*
 yarn-debug.*
@@ -44,3 +50,32 @@ app-example
 # generated native folders
 /ios
 /android
+
+# SQLite Database Files (Local)
+*.db
+*.db3
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+*.logs
+/logs/
+
+# Turbo cache
+.turbo/
+
+# Windows
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# pnpm specific
+.pnpm-debug.log
