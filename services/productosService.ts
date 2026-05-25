@@ -1,4 +1,4 @@
-import { checkNetworkConnection } from '@/hooks/useNetworkState';
+import { checkNetworkConnection } from "@/hooks/useNetworkState";
 import {
     Producto,
     cleanupSyncQueue,
@@ -8,15 +8,16 @@ import {
     getProductoById,
     getProductoStats,
     insertProducto,
+    insertProductoFromSupabase,
     markAsSynced,
     searchProductos,
     updateProducto,
-} from '@/lib/sqlite/productosDb';
-import { supabase } from '@/lib/supabase';
+} from "@/lib/sqlite/productosDb";
+import { supabase } from "@/lib/supabase";
 
 /**
  * CRUD completo de productos con sincronización Supabase + SQLite offline-first
- * 
+ *
  * Flujo:
  * 1. Todas las operaciones se guardan primero en SQLite (garantiza persistencia)
  * 2. Si hay conexión, se intenta sincronizar con Supabase
@@ -39,9 +40,9 @@ export interface ProductoStats {
  * Compatible con Expo/React Native
  */
 function generateId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -49,7 +50,9 @@ function generateId(): string {
 /**
  * Crea un nuevo producto en SQLite y sincroniza con Supabase si hay conexión
  */
-export async function createProducto(input: CreateProductoInput): Promise<Producto | null> {
+export async function createProducto(
+  input: CreateProductoInput,
+): Promise<Producto | null> {
   try {
     const producto: Producto = {
       id: generateId(),
@@ -62,7 +65,7 @@ export async function createProducto(input: CreateProductoInput): Promise<Produc
     // 1. Guardar en SQLite primero (garantizado)
     const savedLocally = await insertProducto(producto);
     if (!savedLocally) {
-      console.error('❌ Error guardando producto en SQLite');
+      console.error("❌ Error guardando producto en SQLite");
       return null;
     }
 
@@ -71,17 +74,19 @@ export async function createProducto(input: CreateProductoInput): Promise<Produc
     // 2. Intentar sincronizar con Supabase si hay conexión
     const isConnected = await checkNetworkConnection();
     if (isConnected) {
-      const synced = await syncProductoToSupabase(producto, 'INSERT');
+      const synced = await syncProductoToSupabase(producto, "INSERT");
       if (synced) {
         console.log(`☁️  Producto sincronizado a Supabase: ${producto.nombre}`);
       }
     } else {
-      console.log(`⟳ Conexión no disponible, sincronizaremos cuando sea posible`);
+      console.log(
+        `⟳ Conexión no disponible, sincronizaremos cuando sea posible`,
+      );
     }
 
     return producto;
   } catch (error) {
-    console.error('Error creando producto:', error);
+    console.error("Error creando producto:", error);
     return null;
   }
 }
@@ -95,7 +100,7 @@ export async function getProductos(): Promise<Producto[]> {
     console.log(`📦 Cargados ${productos.length} productos desde SQLite`);
     return productos;
   } catch (error) {
-    console.error('Error obteniendo productos:', error);
+    console.error("Error obteniendo productos:", error);
     return [];
   }
 }
@@ -107,7 +112,7 @@ export async function getProducto(id: string): Promise<Producto | null> {
   try {
     return await getProductoById(id);
   } catch (error) {
-    console.error('Error obteniendo producto:', error);
+    console.error("Error obteniendo producto:", error);
     return null;
   }
 }
@@ -115,12 +120,14 @@ export async function getProducto(id: string): Promise<Producto | null> {
 /**
  * Busca productos por nombre o SKU
  */
-export async function searchProductosByQuery(query: string): Promise<Producto[]> {
+export async function searchProductosByQuery(
+  query: string,
+): Promise<Producto[]> {
   try {
     if (!query.trim()) return [];
     return await searchProductos(query);
   } catch (error) {
-    console.error('Error buscando productos:', error);
+    console.error("Error buscando productos:", error);
     return [];
   }
 }
@@ -130,13 +137,13 @@ export async function searchProductosByQuery(query: string): Promise<Producto[]>
  */
 export async function updateProductoService(
   id: string,
-  updates: Partial<Producto>
+  updates: Partial<Producto>,
 ): Promise<Producto | null> {
   try {
     // 1. Actualizar en SQLite primero
     const updated = await updateProducto(id, updates);
     if (!updated) {
-      console.error('❌ Error actualizando producto en SQLite');
+      console.error("❌ Error actualizando producto en SQLite");
       return null;
     }
 
@@ -145,7 +152,11 @@ export async function updateProductoService(
     // 2. Intentar sincronizar con Supabase si hay conexión
     const isConnected = await checkNetworkConnection();
     if (isConnected) {
-      const synced = await syncProductoToSupabase(updates as Producto, 'UPDATE', id);
+      const synced = await syncProductoToSupabase(
+        updates as Producto,
+        "UPDATE",
+        id,
+      );
       if (synced) {
         console.log(`☁️  Cambios sincronizados a Supabase: ${id}`);
       }
@@ -154,7 +165,7 @@ export async function updateProductoService(
     // Retornar el producto actualizado
     return await getProductoById(id);
   } catch (error) {
-    console.error('Error actualizando producto:', error);
+    console.error("Error actualizando producto:", error);
     return null;
   }
 }
@@ -167,7 +178,7 @@ export async function deleteProductoService(id: string): Promise<boolean> {
     // 1. Eliminar de SQLite primero
     const deleted = await deleteProducto(id);
     if (!deleted) {
-      console.error('❌ Error eliminando producto de SQLite');
+      console.error("❌ Error eliminando producto de SQLite");
       return false;
     }
 
@@ -184,7 +195,7 @@ export async function deleteProductoService(id: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error('Error eliminando producto:', error);
+    console.error("Error eliminando producto:", error);
     return false;
   }
 }
@@ -199,7 +210,7 @@ export async function getProductoStatistics(): Promise<ProductoStats> {
       total: (stats as any)?.total || 0,
     };
   } catch (error) {
-    console.error('Error obteniendo estadísticas:', error);
+    console.error("Error obteniendo estadísticas:", error);
     return { total: 0 };
   }
 }
@@ -215,35 +226,38 @@ export async function getProductoStatistics(): Promise<ProductoStats> {
  */
 async function syncProductoToSupabase(
   producto: Partial<Producto>,
-  operacion: 'INSERT' | 'UPDATE' | 'DELETE',
-  id?: string
+  operacion: "INSERT" | "UPDATE" | "DELETE",
+  id?: string,
 ): Promise<boolean> {
   try {
     if (!supabase) {
-      console.warn('⚠️  Supabase no configurado');
+      console.warn("⚠️  Supabase no configurado");
       return false;
     }
 
     const productoId = id || producto.id;
     if (!productoId) return false;
 
-    if (operacion === 'INSERT') {
-      const { error } = await supabase.from('productos').insert([producto]);
+    if (operacion === "INSERT") {
+      const { error } = await supabase.from("productos").insert([producto]);
       if (error) {
-        console.error('Error INSERT en Supabase:', error);
+        console.error("Error INSERT en Supabase:", error);
         return false;
       }
-    } else if (operacion === 'UPDATE') {
-      const { error } = await supabase.from('productos').update(producto).eq('id', productoId);
+    } else if (operacion === "UPDATE") {
+      const { error } = await supabase
+        .from("productos")
+        .update(producto)
+        .eq("id", productoId);
       if (error) {
-        console.error('Error UPDATE en Supabase:', error);
+        console.error("Error UPDATE en Supabase:", error);
         return false;
       }
     }
 
     return true;
   } catch (error) {
-    console.error('Error sincronizando a Supabase:', error);
+    console.error("Error sincronizando a Supabase:", error);
     return false;
   }
 }
@@ -254,19 +268,19 @@ async function syncProductoToSupabase(
 async function deleteProductoFromSupabase(id: string): Promise<boolean> {
   try {
     if (!supabase) {
-      console.warn('⚠️  Supabase no configurado');
+      console.warn("⚠️  Supabase no configurado");
       return false;
     }
 
-    const { error } = await supabase.from('productos').delete().eq('id', id);
+    const { error } = await supabase.from("productos").delete().eq("id", id);
     if (error) {
-      console.error('Error DELETE en Supabase:', error);
+      console.error("Error DELETE en Supabase:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error eliminando de Supabase:', error);
+    console.error("Error eliminando de Supabase:", error);
     return false;
   }
 }
@@ -292,11 +306,15 @@ export async function syncAllPendingChanges(): Promise<{
         const change = changeUnknown as any;
         let success = false;
 
-        if (change.operacion === 'DELETE') {
+        if (change.operacion === "DELETE") {
           success = await deleteProductoFromSupabase(change.producto_id);
         } else {
           const datos = JSON.parse(change.datos);
-          success = await syncProductoToSupabase(datos, change.operacion, change.producto_id);
+          success = await syncProductoToSupabase(
+            datos,
+            change.operacion,
+            change.producto_id,
+          );
         }
 
         if (success) {
@@ -315,11 +333,13 @@ export async function syncAllPendingChanges(): Promise<{
     await cleanupSyncQueue();
 
     const result = { total: changes.length, synced, failed };
-    console.log(`✅ Sincronización completada: ${synced}/${changes.length} cambios sincronizados, ${failed} fallidos`);
+    console.log(
+      `✅ Sincronización completada: ${synced}/${changes.length} cambios sincronizados, ${failed} fallidos`,
+    );
 
     return result;
   } catch (error) {
-    console.error('Error sincronizando cambios pendientes:', error);
+    console.error("Error sincronizando cambios pendientes:", error);
     return { total: 0, synced: 0, failed: 0 };
   }
 }
@@ -331,31 +351,31 @@ export async function syncAllPendingChanges(): Promise<{
 export async function downloadProductosFromSupabase(): Promise<boolean> {
   try {
     if (!supabase) {
-      console.warn('⚠️  Supabase no configurado');
+      console.warn("⚠️  Supabase no configurado");
       return false;
     }
 
-    const { data, error } = await supabase.from('productos').select('*');
+    const { data, error } = await supabase.from("productos").select("*");
 
     if (error) {
-      console.error('Error descargando productos de Supabase:', error);
+      console.error("Error descargando productos de Supabase:", error);
       return false;
     }
 
     if (!data || data.length === 0) {
-      console.log('ℹ️  No hay productos en Supabase');
+      console.log("ℹ️  No hay productos en Supabase");
       return true;
     }
 
-    // Guardar cada producto en SQLite
+    // Guardar cada producto en SQLite (sin agregarlo a la cola de sincronización)
     for (const producto of data) {
-      await insertProducto(producto as Producto);
+      await insertProductoFromSupabase(producto as Producto);
     }
 
     console.log(`✅ ${data.length} productos descargados de Supabase`);
     return true;
   } catch (error) {
-    console.error('Error descargando productos de Supabase:', error);
+    console.error("Error descargando productos de Supabase:", error);
     return false;
   }
 }

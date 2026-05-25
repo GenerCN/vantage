@@ -1,30 +1,43 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView, Modal, Platform, Pressable,
-  SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View,
-} from 'react-native';
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-import { EmptyState } from '@/components/ui/EmptyState';
-import { FilterTabs } from '@/components/ui/FilterTabs';
-import { FormField } from '@/components/ui/FormField';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SearchBar } from '@/components/ui/SearchBar';
-import { SectionCard } from '@/components/ui/SectionCard';
-import { StatChip } from '@/components/ui/StatChip';
-import { GlobalStyles, T } from '@/constants/theme';
-import { useNetworkState } from '@/hooks/useNetworkState';
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterTabs } from "@/components/ui/FilterTabs";
+import { FormField } from "@/components/ui/FormField";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatChip } from "@/components/ui/StatChip";
+import { GlobalStyles, T } from "@/constants/theme";
+import {
+  checkNetworkConnection,
+  useNetworkState,
+} from "@/hooks/useNetworkState";
 import {
   createProducto,
   deleteProductoService,
+  downloadProductosFromSupabase,
   getProductos,
   getProductoStatistics,
   syncAllPendingChanges,
   updateProductoService,
   type CreateProductoInput,
-  type ProductoStats
-} from '@/services/productosService';
+  type ProductoStats,
+} from "@/services/productosService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Interfaz que coincide con Supabase
@@ -36,41 +49,63 @@ interface Product {
   creado_en?: string;
 }
 
-const CATEGORIES = ['Básico'];
-const FILTERS = [{ key: 'todos', label: 'Todos' }];
+const CATEGORIES = ["Básico"];
+const FILTERS = [{ key: "todos", label: "Todos" }];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const stockStatus = (p: Product) => {
   // Por ahora, simple estado
-  return { label: 'Registrado', color: T.success, bg: T.successBg };
+  return { label: "Registrado", color: T.success, bg: T.successBg };
 };
 
 // ─── ProductCard ──────────────────────────────────────────────────────────────
-const ProductCard = ({ item, onDelete, onEdit }: { item: Product; onDelete: (id: string) => void; onEdit?: (product: Product) => void }) => {
+const ProductCard = ({
+  item,
+  onDelete,
+  onEdit,
+}: {
+  item: Product;
+  onDelete: (id: string) => void;
+  onEdit?: (product: Product) => void;
+}) => {
   const s = stockStatus(item);
   return (
     <View style={styles.card}>
-      <View style={styles.cardIconBox}><Text style={styles.cardIcon}>📦</Text></View>
+      <View style={styles.cardIconBox}>
+        <Text style={styles.cardIcon}>📦</Text>
+      </View>
       <View style={styles.cardBody}>
-        <Text style={styles.cardName} numberOfLines={1}>{item.nombre}</Text>
+        <Text style={styles.cardName} numberOfLines={1}>
+          {item.nombre}
+        </Text>
         <Text style={styles.cardSku}>{item.peso_individual_gramos}g</Text>
         <View style={styles.cardTags}>
           <Text style={styles.categoryTag}>Stock mín: {item.stock_minimo}</Text>
           <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
-            <Text style={[styles.statusText, { color: s.color }]}>{s.label}</Text>
+            <Text style={[styles.statusText, { color: s.color }]}>
+              {s.label}
+            </Text>
           </View>
         </View>
       </View>
       <View style={styles.cardRight}>
-        <Text style={styles.cardPrice}>{new Date(item.creado_en || '').toLocaleDateString()}</Text>
+        <Text style={styles.cardPrice}>
+          {new Date(item.creado_en || "").toLocaleDateString()}
+        </Text>
       </View>
       <View style={styles.cardActions}>
         {onEdit && (
-          <TouchableOpacity onPress={() => onEdit(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={() => onEdit(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Text style={styles.editBtn}>✏️</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity onPress={() => onDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity
+          onPress={() => onDelete(item.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <Text style={styles.deleteBtn}>🗑️</Text>
         </TouchableOpacity>
       </View>
@@ -79,7 +114,7 @@ const ProductCard = ({ item, onDelete, onEdit }: { item: Product; onDelete: (id:
 };
 
 // ─── Modales de Producto ──────────────────────────────────────────────────────────
-const EMPTY_FORM = { nombre: '', peso_individual_gramos: '', stock_minimo: '' };
+const EMPTY_FORM = { nombre: "", peso_individual_gramos: "", stock_minimo: "" };
 
 interface EditProductModalProps {
   visible: boolean;
@@ -89,7 +124,13 @@ interface EditProductModalProps {
   isLoading?: boolean;
 }
 
-const EditProductModal = ({ visible, onClose, onSave, product, isLoading = false }: EditProductModalProps) => {
+const EditProductModal = ({
+  visible,
+  onClose,
+  onSave,
+  product,
+  isLoading = false,
+}: EditProductModalProps) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -105,15 +146,20 @@ const EditProductModal = ({ visible, onClose, onSave, product, isLoading = false
   }, [product, visible]);
 
   const set = (key: keyof typeof EMPTY_FORM) => (val: string) => {
-    setForm(p => ({ ...p, [key]: val }));
-    if (errors[key]) setErrors(e => ({ ...e, [key]: '' }));
+    setForm((p) => ({ ...p, [key]: val }));
+    if (errors[key]) setErrors((e) => ({ ...e, [key]: "" }));
   };
 
   const handleSubmit = async () => {
     const e: Record<string, string> = {};
-    if (!form.nombre.trim()) e.nombre = 'El nombre es requerido';
-    if (!form.peso_individual_gramos.trim() || isNaN(Number(form.peso_individual_gramos))) e.peso_individual_gramos = 'Peso inválido';
-    if (!form.stock_minimo.trim() || isNaN(Number(form.stock_minimo))) e.stock_minimo = 'Stock mínimo inválido';
+    if (!form.nombre.trim()) e.nombre = "El nombre es requerido";
+    if (
+      !form.peso_individual_gramos.trim() ||
+      isNaN(Number(form.peso_individual_gramos))
+    )
+      e.peso_individual_gramos = "Peso inválido";
+    if (!form.stock_minimo.trim() || isNaN(Number(form.stock_minimo)))
+      e.stock_minimo = "Stock mínimo inválido";
 
     if (Object.keys(e).length) {
       setErrors(e);
@@ -129,8 +175,8 @@ const EditProductModal = ({ visible, onClose, onSave, product, isLoading = false
       });
       onClose();
     } catch (error) {
-      console.error('Error guardando producto:', error);
-      setErrors({ general: 'Error al guardar el producto. Intenta de nuevo.' });
+      console.error("Error guardando producto:", error);
+      setErrors({ general: "Error al guardar el producto. Intenta de nuevo." });
     } finally {
       setSaving(false);
     }
@@ -143,23 +189,69 @@ const EditProductModal = ({ visible, onClose, onSave, product, isLoading = false
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <Pressable style={styles.backdrop} onPress={handleClose} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Editar Producto</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} disabled={saving}>
+            <TouchableOpacity
+              onPress={handleClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              disabled={saving}
+            >
               <Text style={styles.closeBtn}>✕</Text>
             </TouchableOpacity>
           </View>
-          {errors.general && <Text style={styles.errorAlert}>{errors.general}</Text>}
+          {errors.general && (
+            <Text style={styles.errorAlert}>{errors.general}</Text>
+          )}
           <ScrollView showsVerticalScrollIndicator={false}>
-            <FormField label="Nombre" value={form.nombre} onChangeText={set('nombre')} placeholder="Ej. Laptop Dell" error={errors.nombre} required />
-            <FormField label="Peso (gramos)" value={form.peso_individual_gramos} onChangeText={v => set('peso_individual_gramos')(v.replace(/[^0-9.]/g, ''))} placeholder="Ej. 1500" keyboardType="numeric" error={errors.peso_individual_gramos} required />
-            <FormField label="Stock Mínimo" value={form.stock_minimo} onChangeText={v => set('stock_minimo')(v.replace(/[^0-9]/g, ''))} placeholder="Ej. 5" keyboardType="numeric" error={errors.stock_minimo} required />
-            <PrimaryButton label={saving ? 'Guardando...' : 'Guardar Cambios'} onPress={handleSubmit} style={styles.submitBtn} disabled={saving} />
+            <FormField
+              label="Nombre"
+              value={form.nombre}
+              onChangeText={set("nombre")}
+              placeholder="Ej. Laptop Dell"
+              error={errors.nombre}
+              required
+            />
+            <FormField
+              label="Peso (gramos)"
+              value={form.peso_individual_gramos}
+              onChangeText={(v) =>
+                set("peso_individual_gramos")(v.replace(/[^0-9.]/g, ""))
+              }
+              placeholder="Ej. 1500"
+              keyboardType="numeric"
+              error={errors.peso_individual_gramos}
+              required
+            />
+            <FormField
+              label="Stock Mínimo"
+              value={form.stock_minimo}
+              onChangeText={(v) =>
+                set("stock_minimo")(v.replace(/[^0-9]/g, ""))
+              }
+              placeholder="Ej. 5"
+              keyboardType="numeric"
+              error={errors.stock_minimo}
+              required
+            />
+            <PrimaryButton
+              label={saving ? "Guardando..." : "Guardar Cambios"}
+              onPress={handleSubmit}
+              style={styles.submitBtn}
+              disabled={saving}
+            />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -183,16 +275,21 @@ const AddProductModal = ({
   const [saving, setSaving] = useState(false);
 
   const set = (key: keyof typeof EMPTY_FORM) => (val: string) => {
-    setForm(p => ({ ...p, [key]: val }));
-    if (errors[key]) setErrors(e => ({ ...e, [key]: '' }));
+    setForm((p) => ({ ...p, [key]: val }));
+    if (errors[key]) setErrors((e) => ({ ...e, [key]: "" }));
   };
 
   const handleSubmit = async () => {
     const e: Record<string, string> = {};
-    if (!form.nombre.trim())  e.nombre = 'El nombre es requerido';
-    if (!form.peso_individual_gramos.trim() || isNaN(Number(form.peso_individual_gramos)))  e.peso_individual_gramos = 'Peso inválido';
-    if (!form.stock_minimo.trim() || isNaN(Number(form.stock_minimo))) e.stock_minimo = 'Stock mínimo inválido';
-    
+    if (!form.nombre.trim()) e.nombre = "El nombre es requerido";
+    if (
+      !form.peso_individual_gramos.trim() ||
+      isNaN(Number(form.peso_individual_gramos))
+    )
+      e.peso_individual_gramos = "Peso inválido";
+    if (!form.stock_minimo.trim() || isNaN(Number(form.stock_minimo)))
+      e.stock_minimo = "Stock mínimo inválido";
+
     if (Object.keys(e).length) {
       setErrors(e);
       return;
@@ -209,8 +306,8 @@ const AddProductModal = ({
       setErrors({});
       onClose();
     } catch (error) {
-      console.error('Error guardando producto:', error);
-      setErrors({ general: 'Error al guardar el producto. Intenta de nuevo.' });
+      console.error("Error guardando producto:", error);
+      setErrors({ general: "Error al guardar el producto. Intenta de nuevo." });
     } finally {
       setSaving(false);
     }
@@ -223,23 +320,69 @@ const AddProductModal = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <Pressable style={styles.backdrop} onPress={handleClose} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Nuevo Producto</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} disabled={saving}>
+            <TouchableOpacity
+              onPress={handleClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              disabled={saving}
+            >
               <Text style={styles.closeBtn}>✕</Text>
             </TouchableOpacity>
           </View>
-          {errors.general && <Text style={styles.errorAlert}>{errors.general}</Text>}
+          {errors.general && (
+            <Text style={styles.errorAlert}>{errors.general}</Text>
+          )}
           <ScrollView showsVerticalScrollIndicator={false}>
-            <FormField label="Nombre" value={form.nombre} onChangeText={set('nombre')} placeholder="Ej. Laptop Dell" error={errors.nombre} required />
-            <FormField label="Peso (gramos)" value={form.peso_individual_gramos} onChangeText={v => set('peso_individual_gramos')(v.replace(/[^0-9.]/g, ''))} placeholder="Ej. 1500" keyboardType="numeric" error={errors.peso_individual_gramos} required />
-            <FormField label="Stock Mínimo" value={form.stock_minimo} onChangeText={v => set('stock_minimo')(v.replace(/[^0-9]/g, ''))} placeholder="Ej. 5" keyboardType="numeric" error={errors.stock_minimo} required />
-            <PrimaryButton label={saving ? 'Guardando...' : 'Guardar Producto'} onPress={handleSubmit} style={styles.submitBtn} disabled={saving} />
+            <FormField
+              label="Nombre"
+              value={form.nombre}
+              onChangeText={set("nombre")}
+              placeholder="Ej. Laptop Dell"
+              error={errors.nombre}
+              required
+            />
+            <FormField
+              label="Peso (gramos)"
+              value={form.peso_individual_gramos}
+              onChangeText={(v) =>
+                set("peso_individual_gramos")(v.replace(/[^0-9.]/g, ""))
+              }
+              placeholder="Ej. 1500"
+              keyboardType="numeric"
+              error={errors.peso_individual_gramos}
+              required
+            />
+            <FormField
+              label="Stock Mínimo"
+              value={form.stock_minimo}
+              onChangeText={(v) =>
+                set("stock_minimo")(v.replace(/[^0-9]/g, ""))
+              }
+              placeholder="Ej. 5"
+              keyboardType="numeric"
+              error={errors.stock_minimo}
+              required
+            />
+            <PrimaryButton
+              label={saving ? "Guardando..." : "Guardar Producto"}
+              onPress={handleSubmit}
+              style={styles.submitBtn}
+              disabled={saving}
+            />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -252,8 +395,8 @@ export default function ProductosScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('todos');
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("todos");
   const [modal, setModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -271,13 +414,27 @@ export default function ProductosScreen() {
   async function loadProductos() {
     try {
       setLoading(true);
-      const data = await getProductos();
+      let data = await getProductos();
+
+      // Si no hay productos en SQLite pero hay conexión, descargar de Supabase
+      if (data.length === 0) {
+        const isConnected = await checkNetworkConnection();
+        if (isConnected) {
+          console.log("📥 BD local vacía, descargando de Supabase...");
+          const downloaded = await downloadProductosFromSupabase();
+          if (downloaded) {
+            // Recargar desde SQLite después de descargar
+            data = await getProductos();
+          }
+        }
+      }
+
       setProducts(data);
 
       const productStats = await getProductoStatistics();
       setStats(productStats);
     } catch (error) {
-      console.error('Error cargando productos:', error);
+      console.error("Error cargando productos:", error);
     } finally {
       setLoading(false);
     }
@@ -285,14 +442,14 @@ export default function ProductosScreen() {
 
   // Manejar restauración de conexión
   async function handleNetworkRestore() {
-    console.log('Sincronizando cambios con Supabase...');
+    console.log("Sincronizando cambios con Supabase...");
     setSyncing(true);
     try {
       await syncAllPendingChanges();
       // Recargar productos después de sincronizar
       await loadProductos();
     } catch (error) {
-      console.error('Error sincronizando:', error);
+      console.error("Error sincronizando:", error);
     } finally {
       setSyncing(false);
     }
@@ -304,16 +461,16 @@ export default function ProductosScreen() {
       const newProducto = await createProducto(input);
       if (newProducto) {
         // Agregar al estado local inmediatamente
-        setProducts(prev => [newProducto as Product, ...prev]);
+        setProducts((prev) => [newProducto as Product, ...prev]);
         // Actualizar estadísticas
-        setStats(prev => ({
+        setStats((prev) => ({
           ...prev,
           total: prev.total + 1,
         }));
-        console.log('✅ Producto agregado');
+        console.log("✅ Producto agregado");
       }
     } catch (error) {
-      console.error('Error agregando producto:', error);
+      console.error("Error agregando producto:", error);
       throw error;
     }
   }
@@ -332,13 +489,17 @@ export default function ProductosScreen() {
       const updated = await updateProductoService(editingProduct.id, updates);
       if (updated) {
         // Actualizar en la lista local
-        setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...updates } : p));
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === editingProduct.id ? { ...p, ...updates } : p,
+          ),
+        );
         setEditModal(false);
         setEditingProduct(null);
-        console.log('✅ Producto actualizado');
+        console.log("✅ Producto actualizado");
       }
     } catch (error) {
-      console.error('Error actualizando producto:', error);
+      console.error("Error actualizando producto:", error);
       throw error;
     }
   }
@@ -348,14 +509,14 @@ export default function ProductosScreen() {
     try {
       const success = await deleteProductoService(id);
       if (success) {
-        setProducts(prev => prev.filter(p => p.id !== id));
-        setStats(prev => ({
+        setProducts((prev) => prev.filter((p) => p.id !== id));
+        setStats((prev) => ({
           ...prev,
           total: Math.max(0, prev.total - 1),
         }));
       }
     } catch (error) {
-      console.error('Error eliminando producto:', error);
+      console.error("Error eliminando producto:", error);
     }
   }
 
@@ -364,21 +525,24 @@ export default function ProductosScreen() {
     let list = products;
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter(p => p.nombre.toLowerCase().includes(q));
+      list = list.filter((p) => p.nombre.toLowerCase().includes(q));
     }
     return list;
   }, [products, search, filter]);
 
-  const statusIcon = !networkState.isConnected ? '📴' : syncing ? '🔄' : '✓';
+  const statusIcon = !networkState.isConnected ? "📴" : syncing ? "🔄" : "✓";
 
   return (
     <SafeAreaView style={GlobalStyles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={GlobalStyles.scrollContent} showsVerticalScrollIndicator={false}>
-
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={GlobalStyles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <PageHeader
           title="Productos"
-          subtitle={`Gestión de inventario ${!networkState.isConnected ? '(sin conexión)' : ''}`}
+          subtitle={`Gestión de inventario ${!networkState.isConnected ? "(sin conexión)" : ""}`}
           actionLabel="＋ Nuevo"
           onAction={() => setModal(true)}
         />
@@ -387,22 +551,37 @@ export default function ProductosScreen() {
         {(!networkState.isConnected || syncing) && (
           <View style={styles.syncStatus}>
             <Text style={styles.syncStatusText}>
-              {!networkState.isConnected ? '📴 Sin conexión - cambios se guardarán localmente' : syncing ? '🔄 Sincronizando cambios...' : ''}
+              {!networkState.isConnected
+                ? "📴 Sin conexión - cambios se guardarán localmente"
+                : syncing
+                  ? "🔄 Sincronizando cambios..."
+                  : ""}
             </Text>
           </View>
         )}
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <StatChip value={stats.total} label="Total" color={T.info} bg={T.infoBg} />
+          <StatChip
+            value={stats.total}
+            label="Total"
+            color={T.info}
+            bg={T.infoBg}
+          />
         </View>
 
-        <SearchBar value={search} onChangeText={setSearch} placeholder="Buscar por nombre..." />
+        <SearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Buscar por nombre..."
+        />
         <FilterTabs options={FILTERS} active={filter} onSelect={setFilter} />
 
         <SectionCard>
           <View style={styles.listHeader}>
-            <Text style={styles.listCount}>{filtered.length} producto{filtered.length !== 1 ? 's' : ''}</Text>
+            <Text style={styles.listCount}>
+              {filtered.length} producto{filtered.length !== 1 ? "s" : ""}
+            </Text>
             {syncing && <ActivityIndicator size="small" color={T.primary} />}
           </View>
           {loading ? (
@@ -413,7 +592,7 @@ export default function ProductosScreen() {
           ) : filtered.length === 0 ? (
             <EmptyState message="Sin productos encontrados" />
           ) : (
-            filtered.map(item => (
+            filtered.map((item) => (
               <ProductCard
                 key={item.id}
                 item={item}
@@ -427,8 +606,18 @@ export default function ProductosScreen() {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      <AddProductModal visible={modal} onClose={() => setModal(false)} onAdd={handleAddProducto} isLoading={loading} />
-      <EditProductModal visible={editModal} onClose={() => setEditModal(false)} onSave={handleSaveProducto} product={editingProduct} />
+      <AddProductModal
+        visible={modal}
+        onClose={() => setModal(false)}
+        onAdd={handleAddProducto}
+        isLoading={loading}
+      />
+      <EditProductModal
+        visible={editModal}
+        onClose={() => setEditModal(false)}
+        onSave={handleSaveProducto}
+        product={editingProduct}
+      />
     </SafeAreaView>
   );
 }
@@ -436,49 +625,150 @@ export default function ProductosScreen() {
 // ─── Estilos locales ──────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   // Sincronización
-  syncStatus: { backgroundColor: T.warningBg, borderRadius: T.radiusMd, padding: T.md, marginBottom: T.md },
-  syncStatusText: { color: T.warning, fontSize: T.fontSm, fontWeight: T.weightMedium },
-  
+  syncStatus: {
+    backgroundColor: T.warningBg,
+    borderRadius: T.radiusMd,
+    padding: T.md,
+    marginBottom: T.md,
+  },
+  syncStatusText: {
+    color: T.warning,
+    fontSize: T.fontSm,
+    fontWeight: T.weightMedium,
+  },
+
   // Stats y lista
-  statsRow: { flexDirection: 'row', gap: T.sm, marginBottom: T.lg },
-  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: T.sm },
-  listCount: { fontSize: T.fontSm, color: T.textMuted, fontWeight: T.weightMedium },
-  
+  statsRow: { flexDirection: "row", gap: T.sm, marginBottom: T.lg },
+  listHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: T.sm,
+  },
+  listCount: {
+    fontSize: T.fontSm,
+    color: T.textMuted,
+    fontWeight: T.weightMedium,
+  },
+
   // Loading
-  loadingContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: T.xl * 2 },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: T.xl * 2,
+  },
   loadingText: { fontSize: T.fontSm, color: T.textMuted, marginTop: T.md },
-  
+
   // Product card
-  card: { flexDirection: 'row', alignItems: 'center', paddingVertical: T.md, borderTopWidth: 1, borderTopColor: T.separator },
-  cardIconBox: { width: 44, height: 44, borderRadius: T.radiusMd, backgroundColor: T.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginRight: T.md },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: T.md,
+    borderTopWidth: 1,
+    borderTopColor: T.separator,
+  },
+  cardIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: T.radiusMd,
+    backgroundColor: T.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: T.md,
+  },
   cardIcon: { fontSize: 20 },
   cardBody: { flex: 1 },
   cardName: { fontSize: T.fontMd, fontWeight: T.weightSemi, color: T.text },
   cardSku: { fontSize: T.fontXs, color: T.textMuted, marginTop: 1 },
-  cardTags: { flexDirection: 'row', alignItems: 'center', gap: T.xs + 2, marginTop: T.xs + 2 },
-  categoryTag: { fontSize: T.fontXs, color: T.textSecondary, backgroundColor: T.surfaceAlt, paddingHorizontal: 7, paddingVertical: 2, borderRadius: T.radiusSm - 2 },
-  statusBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: T.radiusSm - 2 },
+  cardTags: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: T.xs + 2,
+    marginTop: T.xs + 2,
+  },
+  categoryTag: {
+    fontSize: T.fontXs,
+    color: T.textSecondary,
+    backgroundColor: T.surfaceAlt,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: T.radiusSm - 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: T.radiusSm - 2,
+  },
   statusText: { fontSize: T.fontXs, fontWeight: T.weightSemi },
-  cardRight: { alignItems: 'flex-end', marginRight: T.md },
+  cardRight: { alignItems: "flex-end", marginRight: T.md },
   cardPrice: { fontSize: T.fontSm, color: T.textSecondary, marginTop: T.xs },
-  cardActions: { flexDirection: 'row', gap: T.sm },
+  cardActions: { flexDirection: "row", gap: T.sm },
   editBtn: { fontSize: 18, padding: T.sm },
   deleteBtn: { fontSize: 18, padding: T.sm },
-  
+
   // Modal
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: T.surface, borderTopLeftRadius: T.radiusXl, borderTopRightRadius: T.radiusXl, padding: T.xl, paddingBottom: Platform.OS === 'ios' ? 36 : T.xxl, maxHeight: '92%' },
-  handle: { width: 40, height: 4, backgroundColor: T.border, borderRadius: 2, alignSelf: 'center', marginBottom: T.lg },
-  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: T.xl },
-  sheetTitle: { fontSize: T.fontLg + 2, fontWeight: T.weightBold, color: T.text, letterSpacing: -0.3 },
-  closeBtn: { fontSize: T.fontLg, color: T.textMuted, fontWeight: T.weightMedium },
-  errorAlert: { backgroundColor: T.dangerBg, color: T.danger, padding: T.md, borderRadius: T.radiusMd, fontSize: T.fontSm, marginBottom: T.md },
+  overlay: { flex: 1, justifyContent: "flex-end" },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  sheet: {
+    backgroundColor: T.surface,
+    borderTopLeftRadius: T.radiusXl,
+    borderTopRightRadius: T.radiusXl,
+    padding: T.xl,
+    paddingBottom: Platform.OS === "ios" ? 36 : T.xxl,
+    maxHeight: "92%",
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: T.border,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: T.lg,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: T.xl,
+  },
+  sheetTitle: {
+    fontSize: T.fontLg + 2,
+    fontWeight: T.weightBold,
+    color: T.text,
+    letterSpacing: -0.3,
+  },
+  closeBtn: {
+    fontSize: T.fontLg,
+    color: T.textMuted,
+    fontWeight: T.weightMedium,
+  },
+  errorAlert: {
+    backgroundColor: T.dangerBg,
+    color: T.danger,
+    padding: T.md,
+    borderRadius: T.radiusMd,
+    fontSize: T.fontSm,
+    marginBottom: T.md,
+  },
   submitBtn: { marginTop: T.sm, marginBottom: T.sm },
-  rowFields: { flexDirection: 'row', gap: T.md },
-  chipRow: { flexDirection: 'row', gap: T.sm },
-  chip: { paddingHorizontal: T.md, paddingVertical: T.sm - 1, borderRadius: T.radiusFull, borderWidth: 1, borderColor: T.border, backgroundColor: T.surfaceAlt },
+  rowFields: { flexDirection: "row", gap: T.md },
+  chipRow: { flexDirection: "row", gap: T.sm },
+  chip: {
+    paddingHorizontal: T.md,
+    paddingVertical: T.sm - 1,
+    borderRadius: T.radiusFull,
+    borderWidth: 1,
+    borderColor: T.border,
+    backgroundColor: T.surfaceAlt,
+  },
   chipActive: { backgroundColor: T.primary, borderColor: T.primary },
-  chipText: { fontSize: T.fontSm + 1, fontWeight: T.weightMedium, color: T.textSecondary },
-  chipTextActive: { color: '#fff' },
+  chipText: {
+    fontSize: T.fontSm + 1,
+    fontWeight: T.weightMedium,
+    color: T.textSecondary,
+  },
+  chipTextActive: { color: "#fff" },
 });
