@@ -5,8 +5,9 @@ export const authService = {
    * Registra un usuario con username y contraseña.
    */
   async signUp(username: string, password: string, fullName: string, roleId?: number) {
-    // Generar email automático basado en username
-    const email = `${username}@vantage.com`;
+    // Sanitizar username para evitar errores de mayúsculas o espacios invisibles
+    const sanitizedUsername = username.trim().toLowerCase();
+    const email = `${sanitizedUsername}@vantage.com`;
     
     const { data, error } = await supabase.auth.signUp({
       email: email,
@@ -14,7 +15,7 @@ export const authService = {
       options: {
         data: {
           full_name: fullName,
-          username: username,
+          username: sanitizedUsername,
           role_id: roleId,
         },
       },
@@ -26,8 +27,9 @@ export const authService = {
    * Inicia sesión con username y contraseña.
    */
   async signIn(username: string, password: string) {
-    // Usar username para generar el email que se usará en auth
-    const email = `${username}@vantage.com`;
+    // Sanitizar username para evitar errores de mayúsculas o espacios invisibles
+    const sanitizedUsername = username.trim().toLowerCase();
+    const email = `${sanitizedUsername}@vantage.com`;
     
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
