@@ -1,5 +1,6 @@
 allowBuilds:
   '@firebase/util': false
+  ngrok: true
   protobufjs: false
   unrs-resolver: true
 minimumReleaseAgeExclude:
