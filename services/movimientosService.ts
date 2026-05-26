@@ -319,6 +319,7 @@ async function syncMovimientoToSupabase(
             producto_id: movimiento.producto_id,
             tipo_accion: movimiento.tipo_accion,
             diferencia_peso_gramos: movimiento.diferencia_peso_gramos,
+            cantidad: movimiento.cantidad,
             fecha_hora: movimiento.fecha_hora,
           },
         ]);
@@ -416,23 +417,20 @@ export async function downloadMovimientosFromSupabase(): Promise<boolean> {
       }
     }
 
-    // 3. Guardar en SQLite cada movimiento remoto nuevo
-    const localIds = new Set(localMovements.map((l) => l.id));
+    // 3. Guardar en SQLite cada movimiento remoto (usando INSERT OR REPLACE para asegurar que se actualicen las cantidades de registros existentes)
     for (const remote of remoteMovements) {
-      if (!localIds.has(remote.id)) {
-        const mov: Movimiento = {
-          id: remote.id,
-          usuario_id: remote.usuario_id,
-          estante_id: remote.estante_id || "",
-          producto_id: remote.producto_id || "",
-          tipo_accion: remote.tipo_accion,
-          diferencia_peso_gramos: remote.diferencia_peso_gramos,
-          cantidad: remote.cantidad || 0,
-          fecha_hora: remote.fecha_hora,
-          sinc: 1, // Ya sincronizado
-        };
-        await insertMovimientoFromSupabase(mov);
-      }
+      const mov: Movimiento = {
+        id: remote.id,
+        usuario_id: remote.usuario_id,
+        estante_id: remote.estante_id || "",
+        producto_id: remote.producto_id || "",
+        tipo_accion: remote.tipo_accion,
+        diferencia_peso_gramos: remote.diferencia_peso_gramos,
+        cantidad: remote.cantidad || 0,
+        fecha_hora: remote.fecha_hora,
+        sinc: 1, // Ya sincronizado
+      };
+      await insertMovimientoFromSupabase(mov);
     }
 
     console.log(`✅ Sincronización con Supabase completada: ${remoteMovements.length} remotos.`);

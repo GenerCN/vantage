@@ -47,7 +47,6 @@ pnpm-lock.yaml
 # Setup's
 RLS_SETUP_INSTRUCTIONS.md
 
-
 # IDEs
 .vscode/
 .idea/

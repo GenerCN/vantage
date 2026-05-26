@@ -16,6 +16,7 @@ import {
   useColorScheme,
   View
 } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterTabs } from "@/components/ui/FilterTabs";
@@ -418,6 +419,15 @@ export default function ProductosScreen() {
   const [modal, setModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const params = useLocalSearchParams();
+
+  useEffect(() => {
+    if (params.openModal === "true") {
+      setModal(true);
+    }
+  }, [params.openModal]);
+
   const [stats, setStats] = useState<ProductoStats>({ total: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
