@@ -1,20 +1,41 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
 
+import { authService } from "../services/authService";
 import { styles } from "../styles/StyleLogin";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
-  const manejarLogin = () => {
-    // Si todo está bien, lo mandamos a la pantalla de Home
-    console.log("Login exitoso con:", email);
-    router.replace("/(tabs)/home");
+  const manejarLogin = async () => {
+    if (!username || !password) {
+      Alert.alert("Error", "Por favor ingresa tu nombre de usuario y contraseña.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await authService.signIn(username, password);
+
+      if (error) {
+        Alert.alert("Error de acceso", error.message || "Nombre de usuario o contraseña incorrectos.");
+        console.error("Login error:", error);
+      } else if (data?.session) {
+        console.log("Login exitoso");
+        // No necesita hacer router.replace, _layout.tsx lo hará automáticamente
+      }
+    } catch (err: any) {
+      Alert.alert("Error", "Ocurrió un problema inesperado.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -29,10 +50,9 @@ export default function LoginScreen() {
 
       <TextInput
         style={styles.input}
-        placeholder="Usuario"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
+        placeholder="Nombre de Usuario"
+        value={username}
+        onChangeText={setUsername}
         autoCapitalize="none"
       />
 
@@ -44,13 +64,22 @@ export default function LoginScreen() {
         secureTextEntry
       />
 
-      <TouchableOpacity style={styles.button} onPress={manejarLogin}>
-        <Text style={styles.buttonText}>Entrar</Text>
+      <TouchableOpacity 
+        style={[styles.button, loading && { opacity: 0.7 }]} 
+        onPress={manejarLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Entrar</Text>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.registerButton}
         onPress={() => router.push("/register")}
+        disabled={loading}
       >
         <Text style={styles.registerButtonText}>Crear Cuenta</Text>
       </TouchableOpacity>

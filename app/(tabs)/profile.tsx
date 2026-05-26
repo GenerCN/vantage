@@ -1,13 +1,15 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SectionCard }   from '@/components/ui/SectionCard';
-import { ThemedText }    from '@/components/themed-text';
-import { ThemedView }    from '@/components/themed-view';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { Colors, Fonts, T } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { authService } from '@/services/authService';
 
 // ─── SettingRow ───────────────────────────────────────────────────────────────
 type RowProps = {
@@ -52,11 +54,33 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const palette     = Colors[colorScheme];
   const isDark      = colorScheme === 'dark';
+  const router      = useRouter();
 
   const [pushNotif,    setPushNotif]    = useState(true);
   const [emailNotif,   setEmailNotif]   = useState(false);
   const [syncMobile,   setSyncMobile]   = useState(true);
-  const [faceId,       setFaceId]       = useState(true);
+
+  const handleLogout = async () => {
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Estás seguro de que quieres salir?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Salir", 
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await authService.signOut();
+            if (error) {
+              Alert.alert("Error", "No se pudo cerrar la sesión.");
+            } else {
+              router.replace("/login");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const ui = {
     primary:  isDark ? '#61B4FF'  : T.primary,
@@ -80,11 +104,11 @@ export default function ProfileScreen() {
         {/* Tarjeta de perfil */}
         <SectionCard style={{ flexDirection: 'row', alignItems: 'center', gap: T.md }}>
           <View style={[styles.avatar, { backgroundColor: ui.primary }]}>
-            <ThemedText style={styles.avatarText}>GA</ThemedText>
+            <ThemedText style={styles.avatarText}>👤</ThemedText>
           </View>
           <View style={{ flex: 1 }}>
-            <ThemedText type="subtitle" style={styles.profileName}>Gener Admin</ThemedText>
-            <ThemedText style={{ color: T.textSecondary }}>gener@example.com</ThemedText>
+            <ThemedText type="subtitle" style={styles.profileName}>Mi Perfil</ThemedText>
+            <ThemedText style={{ color: T.textSecondary }}>Usuario de Vantage</ThemedText>
           </View>
           <Pressable style={[styles.editBtn, { borderColor: T.border }]}>
             <MaterialIcons name="edit" size={18} color={palette.text} />
@@ -114,7 +138,7 @@ export default function ProfileScreen() {
 
         <PrimaryButton
           label="Cerrar sesión"
-          onPress={() => {}}
+          onPress={handleLogout}
           variant="outline"
           style={[styles.logoutBtn, { borderColor: ui.danger }]}
         />

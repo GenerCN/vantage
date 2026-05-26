@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
 /**
@@ -23,8 +24,15 @@ if (!SUPABASE_PUBLISHABLE_KEY) {
   console.warn('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY no está configurada en .env.local');
 }
 
-// Crear cliente con URL y publishable key
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Crear cliente con URL y publishable key, configurando almacenamiento persistente
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
 
 export default supabase;
 
