@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View
 } from "react-native";
 
@@ -73,18 +74,29 @@ const ProductCard = ({
   onEdit?: (product: Product) => void;
 }) => {
   const s = stockStatus(item);
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+  const textColor = isDark ? '#ECEDEE' : T.text;
+  const textSecondaryColor = isDark ? '#9BA1A6' : T.textSecondary;
+  const textMutedColor = isDark ? '#7E848C' : T.textMuted;
+  const cardIconBoxBg = isDark ? '#2E3033' : T.surfaceAlt;
+  const categoryTagBg = isDark ? '#2E3033' : T.surfaceAlt;
+  const borderBottomColor = isDark ? '#2E3033' : T.separator;
+
   return (
-    <View style={styles.card}>
-      <View style={styles.cardIconBox}>
+    <View style={[styles.card, { borderTopColor: borderBottomColor }]}>
+      <View style={[styles.cardIconBox, { backgroundColor: cardIconBoxBg }]}>
         <Text style={styles.cardIcon}>📦</Text>
       </View>
       <View style={styles.cardBody}>
-        <Text style={styles.cardName} numberOfLines={1}>
+        <Text style={[styles.cardName, { color: textColor }]} numberOfLines={1}>
           {item.nombre}
         </Text>
-        <Text style={styles.cardSku}>{item.peso_individual_gramos}g</Text>
+        <Text style={[styles.cardSku, { color: textMutedColor }]}>{item.peso_individual_gramos}g</Text>
         <View style={styles.cardTags}>
-          <Text style={styles.categoryTag}>Stock mín: {item.stock_minimo}</Text>
+          <Text style={[styles.categoryTag, { color: textSecondaryColor, backgroundColor: categoryTagBg }]}>
+            Stock mín: {item.stock_minimo}
+          </Text>
           <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
             <Text style={[styles.statusText, { color: s.color }]}>
               {s.label}
@@ -93,7 +105,7 @@ const ProductCard = ({
         </View>
       </View>
       <View style={styles.cardRight}>
-        <Text style={styles.cardPrice}>
+        <Text style={[styles.cardPrice, { color: textSecondaryColor }]}>
           {new Date(item.creado_en || "").toLocaleDateString()}
         </Text>
       </View>
@@ -396,6 +408,8 @@ const AddProductModal = ({
 
 // ─── Pantalla Principal ───────────────────────────────────────────────────────
 export default function ProductosScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -660,8 +674,8 @@ export default function ProductosScreen() {
   const statusIcon = !networkState.isConnected ? "📴" : syncing ? "🔄" : "✓";
 
   return (
-    <SafeAreaView style={GlobalStyles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
+    <SafeAreaView style={[GlobalStyles.screen, { backgroundColor: isDark ? "#151718" : T.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#151718" : T.bg} />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={GlobalStyles.scrollContent}
@@ -713,7 +727,7 @@ export default function ProductosScreen() {
 
         <SectionCard>
           <View style={styles.listHeader}>
-            <Text style={styles.listCount}>
+            <Text style={[styles.listCount, { color: isDark ? '#7E848C' : T.textMuted }]}>
               {filtered.length} producto{filtered.length !== 1 ? "s" : ""}
             </Text>
             {syncing && <ActivityIndicator size="small" color={T.primary} />}

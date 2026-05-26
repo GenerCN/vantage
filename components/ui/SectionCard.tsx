@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Shadows, T } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface Props {
   children: React.ReactNode;
@@ -10,8 +11,17 @@ interface Props {
 }
 
 export function SectionCard({ children, style, noPadding }: Props) {
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+
+  const cardStyle = {
+    backgroundColor: isDark ? '#1E2022' : T.surface,
+    borderColor: isDark ? '#2E3033' : T.border,
+    borderWidth: isDark ? 1 : 0,
+  };
+
   return (
-    <View style={[styles.card, noPadding && styles.noPadding, style]}>
+    <View style={[styles.card, cardStyle, noPadding && styles.noPadding, style]}>
       {children}
     </View>
   );
@@ -19,7 +29,6 @@ export function SectionCard({ children, style, noPadding }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: T.surface,
     borderRadius: T.radiusLg,
     padding: T.lg,
     marginBottom: T.lg,

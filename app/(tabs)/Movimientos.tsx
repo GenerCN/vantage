@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
 
@@ -89,13 +90,20 @@ const MovementCard = ({
     : "Sin estante";
   const productoName = productoMap.get(item.producto_id) || "Producto desconocido";
 
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+  const textColor = isDark ? '#ECEDEE' : T.text;
+  const textSecondaryColor = isDark ? '#9BA1A6' : T.textSecondary;
+  const textMutedColor = isDark ? '#7E848C' : T.textMuted;
+  const borderBottomColor = isDark ? '#2E3033' : T.separator;
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { borderTopColor: borderBottomColor }]}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardProduct}>{productoName}</Text>
-          <Text style={styles.cardEstante}>{estanteName}</Text>
-          <Text style={styles.cardDate}>{formatDate(item.fecha_hora)}</Text>
+          <Text style={[styles.cardProduct, { color: textColor }]}>{productoName}</Text>
+          <Text style={[styles.cardEstante, { color: textSecondaryColor }]}>{estanteName}</Text>
+          <Text style={[styles.cardDate, { color: textMutedColor }]}>{formatDate(item.fecha_hora)}</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: bg }]}>
           <Text style={[styles.badgeText, { color }]}>
@@ -105,14 +113,14 @@ const MovementCard = ({
       </View>
 
       <View style={styles.cardMeta}>
-        <Text style={styles.metaLabel}>
+        <Text style={[styles.metaLabel, { color: textSecondaryColor }]}>
           Cantidad: <Text style={[styles.metaQty, { color }]}>{isEntrada ? "+" : "-"}{item.cantidad || "?"}</Text>
         </Text>
-        <Text style={styles.metaLabel}>
+        <Text style={[styles.metaLabel, { color: textSecondaryColor }]}>
           Peso: <Text style={[styles.metaQty, { color }]}>{weightText}</Text>
         </Text>
-        <Text style={styles.metaLabel}>
-          Tipo: <Text style={styles.metaUser}>{isEntrada ? "Entrada" : "Salida"}</Text>
+        <Text style={[styles.metaLabel, { color: textSecondaryColor }]}>
+          Tipo: <Text style={[styles.metaUser, { color: textColor }]}>{isEntrada ? "Entrada" : "Salida"}</Text>
         </Text>
       </View>
 
@@ -470,6 +478,8 @@ const AddMovementModal = ({
 
 // ─── Pantalla Principal ───────────────────────────────────────────────────────
 export default function MovimientosScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
   const [movements, setMovements] = useState<Movimiento[]>([]);
   const [estantes, setEstantes] = useState<Estante[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -725,8 +735,8 @@ export default function MovimientosScreen() {
   }, [movements, search, estanteMap, productoMap]);
 
   return (
-    <SafeAreaView style={GlobalStyles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
+    <SafeAreaView style={[GlobalStyles.screen, { backgroundColor: isDark ? "#151718" : T.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#151718" : T.bg} />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={GlobalStyles.scrollContent}
@@ -791,7 +801,7 @@ export default function MovimientosScreen() {
 
         <SectionCard>
           <View style={styles.listHeader}>
-            <Text style={styles.listCount}>
+            <Text style={[styles.listCount, { color: isDark ? '#7E848C' : T.textMuted }]}>
               {filtered.length} movimiento{filtered.length !== 1 ? "s" : ""}
             </Text>
             {syncing && <ActivityIndicator size="small" color={T.primary} />}
