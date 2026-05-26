@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -27,8 +29,10 @@ import {
   checkNetworkConnection,
   useNetworkState,
 } from "@/hooks/useNetworkState";
+import { supabase } from "@/lib/supabase";
 import {
   createProducto,
+  deleteProductoFromLocalOnly,
   deleteProductoService,
   downloadProductosFromSupabase,
   getProductos,
@@ -401,13 +405,45 @@ export default function ProductosScreen() {
   const [editModal, setEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [stats, setStats] = useState<ProductoStats>({ total: 0 });
+  const [refreshing, setRefreshing] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingUpdateData, setPendingUpdateData] = useState<{
+    productId: string;
+    updates: Partial<Product>;
+  } | null>(null);
 
   // Monitorear cambios de conexión
   const networkState = useNetworkState(handleNetworkRestore);
 
-  // Cargar productos al iniciar
+  // Cargar productos al iniciar y suscribirse a cambios en tiempo real
   useEffect(() => {
     loadProductos();
+
+    // Suscribirse a cambios en tiempo real de la tabla productos
+    const channel = supabase
+      .channel('productos-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'productos',
+        },
+        (payload) => {
+          console.log('🔄 Cambio detectado en productos:', payload);
+          console.log('📡 Evento:', payload.eventType);
+          // Manejar cambios según el tipo de evento
+          handleRealtimeChange(payload);
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Estado de suscripción Realtime:', status);
+      });
+
+    // Limpiar suscripción al desmontar el componente
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Cargar productos desde la base de datos local
@@ -437,6 +473,47 @@ export default function ProductosScreen() {
       console.error("Error cargando productos:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Manejar eventos Realtime de forma inteligente
+  async function handleRealtimeChange(payload: any) {
+    const eventType = payload.eventType as string;
+    const deletedId = payload.old?.id;
+
+    // Para DELETE: eliminar de SQLite y del estado local
+    if (eventType === 'DELETE' && deletedId) {
+      console.log(`🗑️ Eliminando producto ${deletedId} por evento Realtime`);
+      // Eliminar de SQLite local
+      await deleteProductoFromLocalOnly(deletedId);
+      // Eliminar del estado React
+      setProducts((prev) => prev.filter((p) => p.id !== deletedId));
+      setStats((prev) => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1),
+      }));
+      console.log(`✅ Producto ${deletedId} eliminado de SQLite y estado`);
+    } else {
+      // Para INSERT/UPDATE: descargar desde Supabase
+      await loadProductosFromSupabase();
+    }
+  }
+
+  // Recargar solo desde Supabase (para Realtime)
+  async function loadProductosFromSupabase() {
+    try {
+      console.log("📥 Descargando cambios desde Supabase...");
+      const downloaded = await downloadProductosFromSupabase();
+      if (downloaded) {
+        // Luego recargar desde SQLite para mostrar datos frescos
+        const data = await getProductos();
+        setProducts(data);
+        const productStats = await getProductoStatistics();
+        setStats(productStats);
+        console.log("✅ Cambios sincronizados desde Supabase");
+      }
+    } catch (error) {
+      console.error("Error sincronizando desde Supabase:", error);
     }
   }
 
@@ -482,17 +559,39 @@ export default function ProductosScreen() {
   }
 
   // Guardar cambios de producto
+
+    // Guardar cambios con confirmación
   async function handleSaveProducto(updates: Partial<Product>) {
     if (!editingProduct) return;
 
+    // Pedir confirmación
+    Alert.alert(
+      "Confirmar cambios",
+      "¿Deseas guardar los cambios en este producto?",
+      [
+        { text: "Cancelar", onPress: () => {}, style: "cancel" },
+        {
+          text: "Guardar",
+          onPress: () => performSaveProducto(editingProduct.id, updates),
+          style: "default",
+        },
+      ]
+    );
+  }
+
+  // Realizar guardado después de confirmación
+  async function performSaveProducto(
+    productId: string,
+    updates: Partial<Product>
+  ) {
     try {
-      const updated = await updateProductoService(editingProduct.id, updates);
+      const updated = await updateProductoService(productId, updates);
       if (updated) {
         // Actualizar en la lista local
         setProducts((prev) =>
           prev.map((p) =>
-            p.id === editingProduct.id ? { ...p, ...updates } : p,
-          ),
+            p.id === productId ? { ...p, ...updates } : p
+          )
         );
         setEditModal(false);
         setEditingProduct(null);
@@ -501,6 +600,18 @@ export default function ProductosScreen() {
     } catch (error) {
       console.error("Error actualizando producto:", error);
       throw error;
+    }
+  }
+
+  // Manejar pull-to-refresh
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await loadProductos();
+    } catch (error) {
+      console.error("Error refrescando productos:", error);
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -520,7 +631,23 @@ export default function ProductosScreen() {
     }
   }
 
-  // Filtrar productos
+  // Pedir confirmación para eliminar
+  function handleDeleteConfirmation(id: string) {
+    Alert.alert(
+      "Confirmar eliminación",
+      "¿Estás seguro de que deseas eliminar este producto?",
+      [
+        { text: "Cancelar", onPress: () => {}, style: "cancel" },
+        {
+          text: "Eliminar",
+          onPress: () => handleDeleteProducto(id),
+          style: "destructive",
+        },
+      ]
+    );
+  }
+
+
   const filtered = useMemo(() => {
     let list = products;
     if (search.trim()) {
@@ -539,6 +666,13 @@ export default function ProductosScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={GlobalStyles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={T.primary}
+          />
+        }
       >
         <PageHeader
           title="Productos"
@@ -596,7 +730,7 @@ export default function ProductosScreen() {
               <ProductCard
                 key={item.id}
                 item={item}
-                onDelete={handleDeleteProducto}
+                onDelete={handleDeleteConfirmation}
                 onEdit={handleEditProducto}
               />
             ))

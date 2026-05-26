@@ -106,7 +106,7 @@ export async function insertProductoFromSupabase(
     const db = await getDatabase();
 
     await db.runAsync(
-      `INSERT INTO productos (id, nombre, peso_individual_gramos, stock_minimo, creado_en, sincronizado)
+      `INSERT OR REPLACE INTO productos (id, nombre, peso_individual_gramos, stock_minimo, creado_en, sincronizado)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         producto.id,
@@ -187,6 +187,22 @@ export async function deleteProducto(id: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("Error eliminando producto:", error);
+    return false;
+  }
+}
+
+/**
+ * Elimina un producto de SQLite sin agregar a la cola de sincronización
+ * (usado cuando falla INSERT por UNIQUE constraint - el producto no fue realmente sincronizado)
+ */
+export async function deleteProductoLocally(id: string): Promise<boolean> {
+  try {
+    const db = await getDatabase();
+    await db.runAsync("DELETE FROM productos WHERE id = ?", [id]);
+    console.log(`✅ Producto eliminado del almacenamiento local: ${id}`);
+    return true;
+  } catch (error) {
+    console.error("Error eliminando producto del almacenamiento local:", error);
     return false;
   }
 }

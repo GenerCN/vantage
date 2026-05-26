@@ -1,17 +1,18 @@
 import { checkNetworkConnection } from "@/hooks/useNetworkState";
 import {
-    Producto,
-    cleanupSyncQueue,
-    deleteProducto,
-    getAllProductos,
-    getPendingSyncChanges,
-    getProductoById,
-    getProductoStats,
-    insertProducto,
-    insertProductoFromSupabase,
-    markAsSynced,
-    searchProductos,
-    updateProducto,
+  Producto,
+  cleanupSyncQueue,
+  deleteProducto,
+  deleteProductoLocally,
+  getAllProductos,
+  getPendingSyncChanges,
+  getProductoById,
+  getProductoStats,
+  insertProducto,
+  insertProductoFromSupabase,
+  markAsSynced,
+  searchProductos,
+  updateProducto
 } from "@/lib/sqlite/productosDb";
 import { supabase } from "@/lib/supabase";
 
@@ -201,6 +202,25 @@ export async function deleteProductoService(id: string): Promise<boolean> {
 }
 
 /**
+ * Elimina un producto solo de SQLite local (para Realtime sync)
+ * NO sincroniza con Supabase - se asume que ya fue sincronizado
+ */
+export async function deleteProductoFromLocalOnly(id: string): Promise<boolean> {
+  try {
+    const deleted = await deleteProducto(id);
+    if (!deleted) {
+      console.error("❌ Error eliminando producto de SQLite local");
+      return false;
+    }
+    console.log(`🗑️ Producto eliminado de SQLite local: ${id}`);
+    return true;
+  } catch (error) {
+    console.error("Error eliminando producto de SQLite local:", error);
+    return false;
+  }
+}
+
+/**
  * Obtiene estadísticas de productos
  */
 export async function getProductoStatistics(): Promise<ProductoStats> {
@@ -241,7 +261,15 @@ async function syncProductoToSupabase(
     if (operacion === "INSERT") {
       const { error } = await supabase.from("productos").insert([producto]);
       if (error) {
-        console.error("Error INSERT en Supabase:", error);
+        // Si es error de UNIQUE constraint (23505), eliminar el producto local fallido
+        if ((error as any).code === "23505") {
+          console.warn(
+            `⚠️  "${producto.nombre}" ya existe en el servidor. Limpiando copia local...`
+          );
+          await deleteProductoLocally(productoId);
+        } else {
+          console.error("Error INSERT en Supabase:", error);
+        }
         return false;
       }
     } else if (operacion === "UPDATE") {
@@ -251,6 +279,15 @@ async function syncProductoToSupabase(
         .eq("id", productoId);
       if (error) {
         console.error("Error UPDATE en Supabase:", error);
+        return false;
+      }
+    } else if (operacion === "DELETE") {
+      const { error } = await supabase
+        .from("productos")
+        .delete()
+        .eq("id", productoId);
+      if (error) {
+        console.error("Error DELETE en Supabase:", error);
         return false;
       }
     }
