@@ -421,7 +421,7 @@ export async function downloadMovimientosFromSupabase(): Promise<boolean> {
     for (const remote of remoteMovements) {
       const mov: Movimiento = {
         id: remote.id,
-        usuario_id: remote.usuario_id,
+        usuario_id: remote.usuario_id || "usuario_eliminado",
         estante_id: remote.estante_id || "",
         producto_id: remote.producto_id || "",
         tipo_accion: remote.tipo_accion,
