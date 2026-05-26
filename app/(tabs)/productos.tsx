@@ -55,8 +55,24 @@ interface Product {
   creado_en?: string;
 }
 
+interface ProductLog {
+  id: string;
+  producto_id: string | null;
+  producto_nombre: string;
+  usuario_id: string | null;
+  usuario_nombre: string | null;
+  usuario_rol: string | null;
+  usuario_username: string | null;
+  accion: "CREACION" | "MODIFICACION" | "ELIMINACION";
+  detalles: string | null;
+  fecha_hora: string;
+}
+
 const CATEGORIES = ["Básico"];
-const FILTERS = [{ key: "todos", label: "Todos" }];
+const FILTERS = [
+  { key: "todos", label: "Todos" },
+  { key: "historial", label: "Historial de Cambios" },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const stockStatus = (p: Product) => {
@@ -125,6 +141,97 @@ const ProductCard = ({
         >
           <Text style={styles.deleteBtn}>🗑️</Text>
         </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+// ─── Helpers para Historial ──────────────────────────────────────────────────
+const formatLogDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const day = pad(d.getDate());
+    const month = pad(d.getMonth() + 1);
+    const year = d.getFullYear();
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+// ─── ProductLogCard ──────────────────────────────────────────────────────────
+const ProductLogCard = ({ item }: { item: ProductLog }) => {
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+  const textColor = isDark ? '#ECEDEE' : T.text;
+  const textSecondaryColor = isDark ? '#9BA1A6' : T.textSecondary;
+  const textMutedColor = isDark ? '#7E848C' : T.textMuted;
+  const borderBottomColor = isDark ? '#2E3033' : T.separator;
+
+  let badgeLabel = "";
+  let badgeColor = "";
+  let badgeBg = "";
+  let emoji = "📝";
+
+  if (item.accion === "CREACION") {
+    badgeLabel = "CREADO";
+    badgeColor = isDark ? "#4ADE80" : T.success;
+    badgeBg = isDark ? "rgba(22, 163, 74, 0.15)" : T.successBg;
+    emoji = "🆕";
+  } else if (item.accion === "MODIFICACION") {
+    badgeLabel = "EDITADO";
+    badgeColor = isDark ? "#FBBF24" : T.warning;
+    badgeBg = isDark ? "rgba(217, 119, 6, 0.15)" : T.warningBg;
+    emoji = "✏️";
+  } else if (item.accion === "ELIMINACION") {
+    badgeLabel = "ELIMINADO";
+    badgeColor = isDark ? "#FCA5A5" : T.danger;
+    badgeBg = isDark ? "rgba(220, 38, 38, 0.15)" : T.dangerBg;
+    emoji = "🗑️";
+  }
+
+  const displayUser = item.usuario_nombre 
+    ? `${item.usuario_nombre}${item.usuario_username ? ` (${item.usuario_username})` : ""}`
+    : "Sistema / Anon";
+
+  const displayRole = item.usuario_rol ? ` • ${item.usuario_rol}` : "";
+
+  return (
+    <View style={[styles.logCard, { borderTopColor: borderBottomColor }]}>
+      <View style={styles.logCardHeader}>
+        <View style={styles.logCardTitleRow}>
+          <Text style={styles.logCardEmoji}>{emoji}</Text>
+          <Text style={[styles.logCardName, { color: textColor }]} numberOfLines={1}>
+            {item.producto_nombre}
+          </Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: badgeBg }]}>
+          <Text style={[styles.statusText, { color: badgeColor }]}>
+            {badgeLabel}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.logCardBody}>
+        {item.detalles ? (
+          <Text style={[styles.logCardDetails, { color: textSecondaryColor }]}>
+            {item.detalles}
+          </Text>
+        ) : null}
+
+        <View style={styles.logCardFooter}>
+          <Text style={[styles.logCardUser, { color: textMutedColor }]} numberOfLines={1}>
+            👤 {displayUser}
+            <Text style={{ fontWeight: T.weightSemi }}>{displayRole}</Text>
+          </Text>
+          <Text style={[styles.logCardDate, { color: textMutedColor }]}>
+            🕒 {formatLogDate(item.fecha_hora)}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -435,6 +542,8 @@ export default function ProductosScreen() {
   const [modal, setModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productLogs, setProductLogs] = useState<ProductLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
 
   const params = useLocalSearchParams();
 
@@ -515,6 +624,39 @@ export default function ProductosScreen() {
       setLoading(false);
     }
   }
+
+  // Cargar historial de cambios desde Supabase (RLS filtra por rol)
+  async function loadProductLogs() {
+    try {
+      setLoadingLogs(true);
+      const isConnected = await checkNetworkConnection();
+      if (!isConnected) {
+        setProductLogs([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("historial_cambios_productos")
+        .select("*")
+        .order("fecha_hora", { ascending: false });
+
+      if (error) {
+        console.error("Error al cargar historial de cambios:", error);
+      } else {
+        setProductLogs(data || []);
+      }
+    } catch (e) {
+      console.error("Error cargando logs:", e);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }
+
+  // Cargar logs al activar pestaña
+  useEffect(() => {
+    if (filter === "historial") {
+      loadProductLogs();
+    }
+  }, [filter]);
 
   // Manejar eventos Realtime de forma inteligente
   async function handleRealtimeChange(payload: any) {
@@ -647,9 +789,13 @@ export default function ProductosScreen() {
   async function handleRefresh() {
     setRefreshing(true);
     try {
-      await loadProductos();
+      if (filter === "historial") {
+        await loadProductLogs();
+      } else {
+        await loadProductos();
+      }
     } catch (error) {
-      console.error("Error refrescando productos:", error);
+      console.error("Error refrescando productos/historial:", error);
     } finally {
       setRefreshing(false);
     }
@@ -695,7 +841,21 @@ export default function ProductosScreen() {
       list = list.filter((p) => p.nombre.toLowerCase().includes(q));
     }
     return list;
-  }, [products, search, filter]);
+  }, [products, search]);
+
+  const filteredLogs = useMemo(() => {
+    let list = productLogs;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (log) =>
+          (log.producto_nombre && log.producto_nombre.toLowerCase().includes(q)) ||
+          (log.detalles && log.detalles.toLowerCase().includes(q)) ||
+          (log.usuario_nombre && log.usuario_nombre.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [productLogs, search]);
 
   const statusIcon = !networkState.isConnected ? "📴" : syncing ? "🔄" : "✓";
 
@@ -754,11 +914,28 @@ export default function ProductosScreen() {
         <SectionCard>
           <View style={styles.listHeader}>
             <Text style={[styles.listCount, { color: isDark ? '#7E848C' : T.textMuted }]}>
-              {filtered.length} producto{filtered.length !== 1 ? "s" : ""}
+              {filter === "historial"
+                ? `${filteredLogs.length} registro${filteredLogs.length !== 1 ? "s" : ""}`
+                : `${filtered.length} producto${filtered.length !== 1 ? "s" : ""}`}
             </Text>
             {syncing && <ActivityIndicator size="small" color={T.primary} />}
           </View>
-          {loading ? (
+          {filter === "historial" ? (
+            loadingLogs ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={T.primary} />
+                <Text style={styles.loadingText}>Cargando historial...</Text>
+              </View>
+            ) : !networkState.isConnected ? (
+              <EmptyState message="Sin conexión para ver el historial" />
+            ) : filteredLogs.length === 0 ? (
+              <EmptyState message="Sin registros de cambios" />
+            ) : (
+              filteredLogs.map((item) => (
+                <ProductLogCard key={item.id} item={item} />
+              ))
+            )
+          ) : loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={T.primary} />
               <Text style={styles.loadingText}>Cargando productos...</Text>
@@ -945,4 +1122,59 @@ const styles = StyleSheet.create({
     color: T.textSecondary,
   },
   chipTextActive: { color: "#fff" },
+
+  // Historial styles
+  logCard: {
+    paddingVertical: T.md,
+    borderTopWidth: 1,
+    borderTopColor: T.separator,
+  },
+  logCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: T.xs,
+  },
+  logCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: T.sm,
+  },
+  logCardEmoji: {
+    fontSize: 16,
+    marginRight: T.xs + 2,
+  },
+  logCardName: {
+    fontSize: T.fontMd + 1,
+    fontWeight: T.weightSemi,
+    color: T.text,
+  },
+  logCardBody: {
+    paddingLeft: 22,
+  },
+  logCardDetails: {
+    fontSize: T.fontSm + 1,
+    color: T.textSecondary,
+    lineHeight: 18,
+    marginBottom: T.xs,
+  },
+  logCardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: T.xs,
+    marginTop: T.xs,
+  },
+  logCardUser: {
+    fontSize: T.fontXs + 1,
+    color: T.textMuted,
+    flex: 1,
+    minWidth: 120,
+  },
+  logCardDate: {
+    fontSize: T.fontXs + 1,
+    color: T.textMuted,
+  },
 });
