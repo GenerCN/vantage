@@ -13,6 +13,9 @@ export interface Movimiento {
   cantidad: number;
   fecha_hora: string;
   sinc: number; // 0 = pendiente, 1 = sincronizado
+  usuario_nombre?: string;
+  usuario_rol?: string;
+  usuario_username?: string;
 }
 
 
@@ -24,7 +27,8 @@ export async function getAllMovimientos(): Promise<Movimiento[]> {
     const db = await getDatabase();
     const result = await db.getAllAsync<Movimiento>(
       `SELECT 
-        id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc
+        id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc,
+        usuario_nombre, usuario_rol, usuario_username
        FROM movimientos 
        ORDER BY fecha_hora DESC`
     );
@@ -42,7 +46,8 @@ export async function getMovimientoById(id: string): Promise<Movimiento | null> 
   try {
     const db = await getDatabase();
     const result = await db.getFirstAsync<Movimiento>(
-      `SELECT id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc
+      `SELECT id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc,
+              usuario_nombre, usuario_rol, usuario_username
        FROM movimientos 
        WHERE id = ?`,
       [id]
@@ -62,8 +67,9 @@ export async function insertMovimiento(movimiento: Movimiento): Promise<boolean>
     const db = await getDatabase();
     await db.runAsync(
       `INSERT INTO movimientos 
-       (id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc,
+        usuario_nombre, usuario_rol, usuario_username)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         movimiento.id,
         movimiento.usuario_id,
@@ -74,6 +80,9 @@ export async function insertMovimiento(movimiento: Movimiento): Promise<boolean>
         movimiento.cantidad,
         movimiento.fecha_hora,
         movimiento.sinc || 0,
+        movimiento.usuario_nombre || null,
+        movimiento.usuario_rol || null,
+        movimiento.usuario_username || null,
       ]
     );
     console.log(`✅ Movimiento insertado en SQLite: ${movimiento.id}`);
@@ -94,8 +103,9 @@ export async function insertMovimientoFromSupabase(
     const db = await getDatabase();
     await db.runAsync(
       `INSERT OR REPLACE INTO movimientos 
-       (id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+       (id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc,
+        usuario_nombre, usuario_rol, usuario_username)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
       [
         movimiento.id,
         movimiento.usuario_id,
@@ -105,6 +115,9 @@ export async function insertMovimientoFromSupabase(
         movimiento.diferencia_peso_gramos,
         movimiento.cantidad,
         movimiento.fecha_hora,
+        movimiento.usuario_nombre || null,
+        movimiento.usuario_rol || null,
+        movimiento.usuario_username || null,
       ]
     );
     return true;
@@ -124,7 +137,7 @@ export async function deleteMovimiento(id: string): Promise<boolean> {
     console.log(`✅ Movimiento eliminado: ${id}`);
     return true;
   } catch (error) {
-    console.error("Error eliminando movimiento:", error);
+    console.error("Error deleting movement:", error);
     return false;
   }
 }
@@ -152,7 +165,8 @@ export async function getPendingSyncChanges(): Promise<Movimiento[]> {
   try {
     const db = await getDatabase();
     const result = await db.getAllAsync<Movimiento>(
-      `SELECT id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc
+      `SELECT id, usuario_id, estante_id, producto_id, tipo_accion, diferencia_peso_gramos, cantidad, fecha_hora, sinc,
+              usuario_nombre, usuario_rol, usuario_username
        FROM movimientos 
        WHERE sinc = 0 
        ORDER BY fecha_hora ASC`

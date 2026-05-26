@@ -97,9 +97,31 @@ async function initializeTables(database: SQLite.SQLiteDatabase) {
         diferencia_peso_gramos REAL NOT NULL,
         cantidad INTEGER NOT NULL DEFAULT 0,
         fecha_hora DATETIME NOT NULL,
-        sinc INTEGER DEFAULT 0
+        sinc INTEGER DEFAULT 0,
+        usuario_nombre TEXT,
+        usuario_rol TEXT,
+        usuario_username TEXT
       );
     `);
+
+    // Migración dinámica de columnas si ya existía la tabla local
+    try {
+      const colInfo = await database.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(movimientos)"
+      );
+      const colNames = colInfo.map((col: any) => col.name);
+      if (!colNames.includes("usuario_nombre")) {
+        await database.execAsync("ALTER TABLE movimientos ADD COLUMN usuario_nombre TEXT;");
+      }
+      if (!colNames.includes("usuario_rol")) {
+        await database.execAsync("ALTER TABLE movimientos ADD COLUMN usuario_rol TEXT;");
+      }
+      if (!colNames.includes("usuario_username")) {
+        await database.execAsync("ALTER TABLE movimientos ADD COLUMN usuario_username TEXT;");
+      }
+    } catch (migrationError) {
+      console.error("Error migrando columnas en SQLite de movimientos:", migrationError);
+    }
 
     // Crear índices para mejor performance
     await database.execAsync(`

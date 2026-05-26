@@ -24,6 +24,9 @@ export interface Movimiento {
   cantidad: number;
   fecha_hora: string;
   sinc: number; // 0 = pendiente, 1 = sincronizado
+  usuario_nombre?: string;
+  usuario_rol?: string;
+  usuario_username?: string;
 }
 
 /**
@@ -141,9 +144,43 @@ export async function createMovimiento(
 ): Promise<Movimiento | null> {
   try {
     // 1. Obtener usuario autenticado
-    const usuario_id = await getAuthUserId();
-    if (!usuario_id) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       throw new Error("No hay una sesión activa de usuario. Por favor, inicia sesión.");
+    }
+    const usuario_id = user.id;
+
+    // 1.1. Obtener datos del perfil actual (foto) con fallback offline a los metadatos de sesión
+    let usuario_nombre = user.user_metadata?.full_name || "Mi Perfil";
+    let usuario_username = user.user_metadata?.username ? `@${user.user_metadata.username}` : "";
+    let usuario_rol = "Empleado";
+
+    const rolesMap: Record<number, string> = {
+      1: "Administrador TI",
+      2: "Desarrollador",
+      3: "Tester",
+      4: "Empleado"
+    };
+    if (user.user_metadata?.role_id) {
+      usuario_rol = rolesMap[user.user_metadata.role_id] || "Empleado";
+    }
+
+    try {
+      const isConnected = await checkNetworkConnection();
+      if (isConnected) {
+        const { data: perfilData } = await supabase
+          .from("perfiles")
+          .select("nombre_completo, roles(nombre)")
+          .eq("id", user.id)
+          .single();
+        
+        if (perfilData) {
+          usuario_nombre = perfilData.nombre_completo || usuario_nombre;
+          usuario_rol = (perfilData as any).roles?.nombre || usuario_rol;
+        }
+      }
+    } catch (perfilError) {
+      console.warn("No se pudo obtener el perfil fresco para el log, usando fallbacks:", perfilError);
     }
 
     // 2. Validar stock para SALIDA
@@ -172,6 +209,9 @@ export async function createMovimiento(
       cantidad: input.cantidad,
       fecha_hora: new Date().toISOString(),
       sinc: 0, // Pendiente de sincronizar
+      usuario_nombre,
+      usuario_rol,
+      usuario_username,
     };
 
     // 4. Guardar en SQLite primero (garantizado)
@@ -321,6 +361,9 @@ async function syncMovimientoToSupabase(
             diferencia_peso_gramos: movimiento.diferencia_peso_gramos,
             cantidad: movimiento.cantidad,
             fecha_hora: movimiento.fecha_hora,
+            usuario_nombre: movimiento.usuario_nombre || null,
+            usuario_rol: movimiento.usuario_rol || null,
+            usuario_username: movimiento.usuario_username || null,
           },
         ]);
 
@@ -429,6 +472,9 @@ export async function downloadMovimientosFromSupabase(): Promise<boolean> {
         cantidad: remote.cantidad || 0,
         fecha_hora: remote.fecha_hora,
         sinc: 1, // Ya sincronizado
+        usuario_nombre: remote.usuario_nombre,
+        usuario_rol: remote.usuario_rol,
+        usuario_username: remote.usuario_username,
       };
       await insertMovimientoFromSupabase(mov);
     }

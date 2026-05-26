@@ -67,16 +67,19 @@ const formatDate = (dateStr: string) => {
 };
 
 // ─── MovementCard ─────────────────────────────────────────────────────────────
+// ─── MovementCard ─────────────────────────────────────────────────────────────
 const MovementCard = ({
   item,
   onDelete,
   estanteMap,
   productoMap,
+  perfilMap,
 }: {
   item: Movimiento;
   onDelete: (id: string) => void;
   estanteMap: Map<string, string>;
   productoMap: Map<string, string>;
+  perfilMap: Map<string, { nombre: string; rol: string }>;
 }) => {
   const isEntrada = item.tipo_accion === "ENTRADA";
   const color = isEntrada ? T.success : T.danger;
@@ -97,6 +100,22 @@ const MovementCard = ({
   const textMutedColor = isDark ? '#7E848C' : T.textMuted;
   const borderBottomColor = isDark ? '#2E3033' : T.separator;
 
+  // 1. Usar instantánea permanente (Patrón A)
+  // 2. Fallback al mapa dinámico para registros antiguos
+  const perfilInfo = perfilMap.get(item.usuario_id);
+  
+  const usuarioNombre = item.usuario_nombre 
+    ? item.usuario_nombre 
+    : (perfilInfo ? perfilInfo.nombre : (item.usuario_id === 'usuario_eliminado' ? 'Usuario eliminado' : 'Cargando...'));
+  
+  const usuarioRol = item.usuario_rol
+    ? item.usuario_rol
+    : (perfilInfo ? perfilInfo.rol : '');
+
+  const usuarioUsername = item.usuario_username
+    ? item.usuario_username
+    : '';
+
   return (
     <View style={[styles.card, { borderTopColor: borderBottomColor }]}>
       <View style={styles.cardHeader}>
@@ -110,6 +129,15 @@ const MovementCard = ({
             {isEntrada ? "↗" : "↙"}
           </Text>
         </View>
+      </View>
+
+      {/* Realizado por */}
+      <View style={{ marginBottom: 8, marginTop: -2 }}>
+        <Text style={{ fontSize: T.fontSm, color: textSecondaryColor }}>
+          Realizado por: <Text style={{ fontWeight: T.weightSemi, color: textColor }}>{usuarioNombre}</Text>
+          {usuarioUsername ? <Text style={{ color: textMutedColor, fontSize: T.fontXs }}> {usuarioUsername}</Text> : null}
+          {usuarioRol ? <Text style={{ fontSize: T.fontXs, color: textMutedColor }}> ({usuarioRol})</Text> : null}
+        </Text>
       </View>
 
       <View style={styles.cardMeta}>
@@ -467,6 +495,7 @@ export default function MovimientosScreen() {
     salidas: 0,
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [perfiles, setPerfiles] = useState<any[]>([]);
 
   // Mapear estante_id a ubicación
   const estanteMap = useMemo(() => {
@@ -486,6 +515,18 @@ export default function MovimientosScreen() {
     return map;
   }, [productos]);
 
+  // Mapear perfil_id a nombre y rol
+  const perfilMap = useMemo(() => {
+    const map = new Map<string, { nombre: string; rol: string }>();
+    perfiles.forEach((p) => {
+      map.set(p.id, {
+        nombre: p.nombre_completo,
+        rol: p.roles?.nombre || "Empleado",
+      });
+    });
+    return map;
+  }, [perfiles]);
+
   // Monitorear cambios de conexión
   const networkState = useNetworkState(handleNetworkRestore);
 
@@ -494,6 +535,7 @@ export default function MovimientosScreen() {
     loadMovimientos();
     loadEstantes();
     loadProductos();
+    loadPerfiles();
 
     // Suscribirse a cambios en tiempo real de la tabla movimientos
     const channel = supabase
@@ -529,6 +571,7 @@ export default function MovimientosScreen() {
       if (isConnected) {
         console.log("📥 Reconciliando base de datos de movimientos con Supabase...");
         await downloadMovimientosFromSupabase();
+        await loadPerfiles();
       }
 
       const data = await getMovimientos();
@@ -540,6 +583,23 @@ export default function MovimientosScreen() {
       console.error("Error cargando movimientos:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Cargar perfiles desde Supabase
+  async function loadPerfiles() {
+    try {
+      const { data, error } = await supabase
+        .from("perfiles")
+        .select("id, nombre_completo, roles(nombre)");
+
+      if (error) {
+        console.error("Error cargando perfiles:", error);
+        return;
+      }
+      setPerfiles(data || []);
+    } catch (error) {
+      console.error("Error cargando perfiles:", error);
     }
   }
 
@@ -686,6 +746,7 @@ export default function MovimientosScreen() {
     try {
       await loadMovimientos();
       await loadProductos();
+      await loadPerfiles();
     } catch (error) {
       console.error("Error refrescando movimientos:", error);
     } finally {
@@ -795,6 +856,7 @@ export default function MovimientosScreen() {
                 onDelete={handleDeleteConfirmation}
                 estanteMap={estanteMap}
                 productoMap={productoMap}
+                perfilMap={perfilMap}
               />
             ))
           )}
