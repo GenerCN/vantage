@@ -709,7 +709,7 @@ export default function MovimientosScreen() {
   }, [movements, search, estanteMap, productoMap]);
 
   return (
-    <SafeAreaView style={[GlobalStyles.screen, { backgroundColor: isDark ? "#151718" : T.bg }]}>
+    <SafeAreaView style={[GlobalStyles.screen, { backgroundColor: isDark ? "#151718" : T.bg, paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 8 : 0 }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#151718" : T.bg} />
       <ScrollView
         style={{ flex: 1 }}

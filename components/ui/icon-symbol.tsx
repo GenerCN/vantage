@@ -23,6 +23,7 @@ const MAPPING = {
   "chevron.right": "chevron-right",
   "arrow.right.circle.fill": "arrow-right-alt",
   "person.fill": "person",
+  "list.bullet": "format-list-bulleted",
 } as IconMapping;
 
 /**
