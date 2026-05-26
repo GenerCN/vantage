@@ -74,12 +74,14 @@ const MovementCard = ({
   estanteMap,
   productoMap,
   perfilMap,
+  showDelete = false,
 }: {
   item: Movimiento;
   onDelete: (id: string) => void;
   estanteMap: Map<string, string>;
   productoMap: Map<string, string>;
   perfilMap: Map<string, { nombre: string; rol: string }>;
+  showDelete?: boolean;
 }) => {
   const isEntrada = item.tipo_accion === "ENTRADA";
   const color = isEntrada ? T.success : T.danger;
@@ -152,14 +154,16 @@ const MovementCard = ({
         </Text>
       </View>
 
-      <View style={styles.cardActions}>
-        <TouchableOpacity
-          onPress={() => onDelete(item.id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.deleteBtn}>🗑️</Text>
-        </TouchableOpacity>
-      </View>
+      {showDelete && (
+        <View style={styles.cardActions}>
+          <TouchableOpacity
+            onPress={() => onDelete(item.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.deleteBtn}>🗑️</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -496,6 +500,7 @@ export default function MovimientosScreen() {
   });
   const [refreshing, setRefreshing] = useState(false);
   const [perfiles, setPerfiles] = useState<any[]>([]);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   // Mapear estante_id a ubicación
   const estanteMap = useMemo(() => {
@@ -532,6 +537,7 @@ export default function MovimientosScreen() {
 
   // Cargar movimientos al iniciar y suscribirse a cambios en tiempo real
   useEffect(() => {
+    loadCurrentUserRole();
     loadMovimientos();
     loadEstantes();
     loadProductos();
@@ -560,6 +566,26 @@ export default function MovimientosScreen() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Cargar rol del usuario actual desde Supabase
+  async function loadCurrentUserRole() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from("perfiles")
+          .select("id, roles(nombre)")
+          .eq("id", user.id)
+          .single();
+        if (data && !error) {
+          const roleName = (data as any).roles?.nombre || "Empleado";
+          setCurrentUserRole(roleName);
+        }
+      }
+    } catch (e) {
+      console.error("Error cargando rol del usuario actual:", e);
+    }
+  }
 
   // Cargar movimientos desde la base de datos local
   async function loadMovimientos() {
@@ -705,6 +731,10 @@ export default function MovimientosScreen() {
 
   // Eliminar movimiento
   async function handleDeleteMovimiento(id: string) {
+    if (currentUserRole !== "Administrador TI") {
+      Alert.alert("Acceso denegado", "Solo el Administrador TI puede eliminar movimientos.");
+      return;
+    }
     try {
       const success = await deleteMovimientoService(id);
       if (success) {
@@ -857,6 +887,7 @@ export default function MovimientosScreen() {
                 estanteMap={estanteMap}
                 productoMap={productoMap}
                 perfilMap={perfilMap}
+                showDelete={currentUserRole === "Administrador TI"}
               />
             ))
           )}
