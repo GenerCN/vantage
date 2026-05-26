@@ -264,6 +264,17 @@ const AddMovementModal = ({
     onClose();
   };
 
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+
+  const overlayBg = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.4)';
+  const sheetBg = isDark ? '#1E2022' : T.surface;
+  const handleBg = isDark ? '#3E4145' : T.border;
+  const textColor = isDark ? '#ECEDEE' : T.text;
+  const textColorSecondary = isDark ? '#9BA1A6' : T.textSecondary;
+  const borderColor = isDark ? '#3E4145' : T.border;
+  const surfaceAltBg = isDark ? '#2E3033' : T.surfaceAlt;
+
   return (
     <Modal
       visible={visible}
@@ -275,17 +286,17 @@ const AddMovementModal = ({
         style={styles.overlay}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Pressable style={styles.backdrop} onPress={handleClose} />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
+        <Pressable style={[styles.backdrop, { backgroundColor: overlayBg }]} onPress={handleClose} />
+        <View style={[styles.sheet, { backgroundColor: sheetBg }]}>
+          <View style={[styles.handle, { backgroundColor: handleBg }]} />
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Nuevo Movimiento</Text>
+            <Text style={[styles.sheetTitle, { color: textColor }]}>Nuevo Movimiento</Text>
             <TouchableOpacity
               onPress={handleClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               disabled={saving}
             >
-              <Text style={styles.closeBtn}>✕</Text>
+              <Text style={[styles.closeBtn, isDark && { color: '#9BA1A6' }]}>✕</Text>
             </TouchableOpacity>
           </View>
 
@@ -296,13 +307,14 @@ const AddMovementModal = ({
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Toggle tipo */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Tipo de Movimiento *</Text>
+              <Text style={[styles.formLabel, { color: textColor }]}>Tipo de Movimiento *</Text>
               <View style={styles.toggleRow}>
                 {(["ENTRADA", "SALIDA"] as const).map((tipo) => (
                   <TouchableOpacity
                     key={tipo}
                     style={[
                       styles.toggleBtn,
+                      { backgroundColor: surfaceAltBg, borderColor },
                       form.tipo_accion === tipo &&
                         (tipo === "ENTRADA"
                           ? styles.toggleEntrada
@@ -313,6 +325,7 @@ const AddMovementModal = ({
                     <Text
                       style={[
                         styles.toggleText,
+                        { color: isDark ? '#9BA1A6' : T.textMuted },
                         form.tipo_accion === tipo && {
                           color:
                             tipo === "ENTRADA"
@@ -328,51 +341,9 @@ const AddMovementModal = ({
               </View>
             </View>
 
-            {/* Selector de estante deshabilitado por test */}
-            {/* 
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Estante {form.estante_id ? "" : "*"}</Text>
-              {estantes.length === 0 ? (
-                <Text style={styles.emptyListText}>No hay estantes disponibles</Text>
-              ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.chipList}
-                >
-                  {estantes.map((s) => (
-                    <TouchableOpacity
-                      key={s.id}
-                      style={[
-                        styles.chip,
-                        form.estante_id === s.id && styles.chipActive,
-                      ]}
-                      onPress={() => {
-                        set("estante_id")(s.id);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          form.estante_id === s.id &&
-                            styles.chipTextActive,
-                        ]}
-                      >
-                        {s.ubicacion_fisica || `Estante ${s.mac_address.slice(0, 5)}`}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-              {errors.estante_id && (
-                <Text style={styles.errorText}>{errors.estante_id}</Text>
-              )}
-            </View>
-            */}
-
             {/* Selector de producto */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Producto {form.producto_id ? "" : "*"}</Text>
+              <Text style={[styles.formLabel, { color: textColor }]}>Producto {form.producto_id ? "" : "*"}</Text>
               {productos.length === 0 ? (
                 <View style={styles.warningBox}>
                   <Text style={styles.warningText}>
@@ -390,6 +361,7 @@ const AddMovementModal = ({
                       key={p.id}
                       style={[
                         styles.productoItem,
+                        { backgroundColor: surfaceAltBg, borderColor },
                         form.producto_id === p.id && styles.productoItemActive,
                       ]}
                       onPress={() => {
@@ -400,6 +372,7 @@ const AddMovementModal = ({
                         <Text
                           style={[
                             styles.productoItemName,
+                            { color: textColor },
                             form.producto_id === p.id && styles.productoItemNameActive,
                           ]}
                         >
@@ -408,6 +381,7 @@ const AddMovementModal = ({
                         <Text
                           style={[
                             styles.productoItemDetail,
+                            { color: textColorSecondary },
                             form.producto_id === p.id && styles.productoItemDetailActive,
                           ]}
                         >
@@ -428,8 +402,8 @@ const AddMovementModal = ({
 
             {/* Alerta de stock disponible */}
             {form.tipo_accion === "SALIDA" && form.producto_id && (
-              <View style={[styles.infoBox, stockDisponible !== null && stockDisponible <= 0 ? styles.warningInfoBox : null]}>
-                <Text style={[styles.infoText, stockDisponible !== null && stockDisponible <= 0 ? styles.warningInfoText : null]}>
+              <View style={[styles.infoBox, { backgroundColor: isDark ? '#1E293B' : T.infoBg }, stockDisponible !== null && stockDisponible <= 0 ? (isDark ? { backgroundColor: '#3B2314' } : styles.warningInfoBox) : null]}>
+                <Text style={[styles.infoText, { color: isDark ? '#93C5FD' : T.info }, stockDisponible !== null && stockDisponible <= 0 ? (isDark ? { color: '#FCD34D' } : styles.warningInfoText) : null]}>
                   {loadingStock
                     ? "Consultando stock..."
                     : stockDisponible !== null
@@ -455,8 +429,8 @@ const AddMovementModal = ({
 
             {/* Resumen de peso total */}
             {selectedProduct && form.cantidad ? (
-              <View style={styles.infoBox}>
-                <Text style={styles.infoText}>
+              <View style={[styles.infoBox, { backgroundColor: isDark ? '#1E293B' : T.infoBg }]}>
+                <Text style={[styles.infoText, { color: isDark ? '#93C5FD' : T.info }]}>
                   Peso total: {formatWeight(Number(form.cantidad) * selectedProduct.peso_individual_gramos)}
                   {" "}({form.cantidad} × {formatWeight(selectedProduct.peso_individual_gramos)})
                 </Text>

@@ -205,6 +205,14 @@ const EditProductModal = ({
     onClose();
   };
 
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+
+  const overlayBg = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.4)';
+  const sheetBg = isDark ? '#1E2022' : T.surface;
+  const handleBg = isDark ? '#3E4145' : T.border;
+  const textColor = isDark ? '#ECEDEE' : T.text;
+
   return (
     <Modal
       visible={visible}
@@ -216,17 +224,17 @@ const EditProductModal = ({
         style={styles.overlay}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Pressable style={styles.backdrop} onPress={handleClose} />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
+        <Pressable style={[styles.backdrop, { backgroundColor: overlayBg }]} onPress={handleClose} />
+        <View style={[styles.sheet, { backgroundColor: sheetBg }]}>
+          <View style={[styles.handle, { backgroundColor: handleBg }]} />
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Editar Producto</Text>
+            <Text style={[styles.sheetTitle, { color: textColor }]}>Editar Producto</Text>
             <TouchableOpacity
               onPress={handleClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               disabled={saving}
             >
-              <Text style={styles.closeBtn}>✕</Text>
+              <Text style={[styles.closeBtn, isDark && { color: '#9BA1A6' }]}>✕</Text>
             </TouchableOpacity>
           </View>
           {errors.general && (
@@ -336,6 +344,14 @@ const AddProductModal = ({
     onClose();
   };
 
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+
+  const overlayBg = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.4)';
+  const sheetBg = isDark ? '#1E2022' : T.surface;
+  const handleBg = isDark ? '#3E4145' : T.border;
+  const textColor = isDark ? '#ECEDEE' : T.text;
+
   return (
     <Modal
       visible={visible}
@@ -347,17 +363,17 @@ const AddProductModal = ({
         style={styles.overlay}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Pressable style={styles.backdrop} onPress={handleClose} />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
+        <Pressable style={[styles.backdrop, { backgroundColor: overlayBg }]} onPress={handleClose} />
+        <View style={[styles.sheet, { backgroundColor: sheetBg }]}>
+          <View style={[styles.handle, { backgroundColor: handleBg }]} />
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Nuevo Producto</Text>
+            <Text style={[styles.sheetTitle, { color: textColor }]}>Nuevo Producto</Text>
             <TouchableOpacity
               onPress={handleClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               disabled={saving}
             >
-              <Text style={styles.closeBtn}>✕</Text>
+              <Text style={[styles.closeBtn, isDark && { color: '#9BA1A6' }]}>✕</Text>
             </TouchableOpacity>
           </View>
           {errors.general && (

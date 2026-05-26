@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, useColorScheme, View } from "react-native";
 
 // Importamos los estilos desde la carpeta independiente
 import { perfilService } from "../services/perfilService";
@@ -14,6 +14,24 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingRoles, setLoadingRoles] = useState(true);
   const [showRoleModal, setShowRoleModal] = useState(false);
+
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+
+  const containerBg = isDark ? "#151718" : "#ffffff";
+  const titleColor = isDark ? "#ECEDEE" : "#333333";
+  const labelColor = isDark ? "#ECEDEE" : "#555555";
+  const inputBg = isDark ? "#1E2022" : "#f9f9f9";
+  const inputBorderColor = isDark ? "#3E4145" : "#ccc";
+  const inputTextColor = isDark ? "#ECEDEE" : "#333333";
+  const placeholderColor = isDark ? "#7E848C" : "#999999";
+  const arrowColor = isDark ? "#007AFF" : "#007AFF";
+
+  // Modal selector styles
+  const modalOverlayBg = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.5)';
+  const modalSheetBg = isDark ? '#1E2022' : '#ffffff';
+  const modalBorderColor = isDark ? '#2E3033' : '#ccc';
+  const modalHeaderColor = isDark ? '#ECEDEE' : '#333333';
 
   // Campos del formulario
   const [username, setUsername] = useState("");
@@ -114,16 +132,17 @@ export default function RegisterScreen() {
 
   if (loadingRoles) {
     return (
-      <View style={[styles.scrollContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.scrollContainer, { justifyContent: 'center', alignItems: 'center', backgroundColor: containerBg }]}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.title}>Cargando...</Text>
+        <Text style={[styles.title, { color: titleColor }]}>Cargando...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <View style={{ flex: 1, backgroundColor: containerBg }}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={containerBg} />
+      <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: containerBg }]}>
         {/* Botón de Regreso dentro del ScrollView */}
         <View style={{ marginBottom: 16 }}>
           <TouchableOpacity
@@ -131,16 +150,17 @@ export default function RegisterScreen() {
             disabled={loading}
             style={{ flexDirection: 'row', alignItems: 'center' }}
           >
-            <Ionicons name="arrow-back" size={24} color="#007AFF" />
-            <Text style={{ fontSize: 16, color: '#007AFF', marginLeft: 8 }}>Regresar</Text>
+            <Ionicons name="arrow-back" size={24} color={arrowColor} />
+            <Text style={{ fontSize: 16, color: arrowColor, marginLeft: 8 }}>Regresar</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.title}>Crear una Cuenta</Text>
+        <Text style={[styles.title, { color: titleColor }]}>Crear una Cuenta</Text>
 
-        <Text style={styles.label}>Nombre de Usuario *</Text>
+        <Text style={[styles.label, { color: labelColor }]}>Nombre de Usuario *</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorderColor, color: inputTextColor }]}
+          placeholderTextColor={placeholderColor}
           value={username}
           onChangeText={setUsername}
           placeholder="Ej. juan.perez"
@@ -148,45 +168,50 @@ export default function RegisterScreen() {
           editable={!loading}
         />
 
-        <Text style={styles.label}>Primer Nombre *</Text>
+        <Text style={[styles.label, { color: labelColor }]}>Primer Nombre *</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorderColor, color: inputTextColor }]}
+          placeholderTextColor={placeholderColor}
           value={firstName}
           onChangeText={setFirstName}
           placeholder="Ej. Juan"
           editable={!loading}
         />
 
-        <Text style={styles.label}>Segundo Nombre</Text>
+        <Text style={[styles.label, { color: labelColor }]}>Segundo Nombre</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorderColor, color: inputTextColor }]}
+          placeholderTextColor={placeholderColor}
           value={middleName}
           onChangeText={setMiddleName}
           placeholder="Ej. Carlos (opcional)"
           editable={!loading}
         />
 
-        <Text style={styles.label}>Primer Apellido *</Text>
+        <Text style={[styles.label, { color: labelColor }]}>Primer Apellido *</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorderColor, color: inputTextColor }]}
+          placeholderTextColor={placeholderColor}
           value={firstLastName}
           onChangeText={setFirstLastName}
           placeholder="Ej. Pérez"
           editable={!loading}
         />
 
-        <Text style={styles.label}>Segundo Apellido *</Text>
+        <Text style={[styles.label, { color: labelColor }]}>Segundo Apellido *</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorderColor, color: inputTextColor }]}
+          placeholderTextColor={placeholderColor}
           value={secondLastName}
           onChangeText={setSecondLastName}
           placeholder="Ej. García"
           editable={!loading}
         />
 
-        <Text style={styles.label}>Contraseña *</Text>
+        <Text style={[styles.label, { color: labelColor }]}>Contraseña *</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorderColor, color: inputTextColor }]}
+          placeholderTextColor={placeholderColor}
           value={password}
           onChangeText={setPassword}
           placeholder="Mínimo 6 caracteres"
@@ -194,13 +219,13 @@ export default function RegisterScreen() {
           editable={!loading}
         />
 
-        <Text style={styles.label}>Puesto *</Text>
+        <Text style={[styles.label, { color: labelColor }]}>Puesto *</Text>
         <TouchableOpacity
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorderColor }]}
           onPress={() => setShowRoleModal(true)}
           disabled={loading}
         >
-          <Text style={{ fontSize: 16, color: roles.find(r => r.id.toString() === selectedRoleId)?.nombre ? "#333" : "#999" }}>
+          <Text style={{ fontSize: 16, color: roles.find(r => r.id.toString() === selectedRoleId)?.nombre ? inputTextColor : placeholderColor }}>
             {roles.find(r => r.id.toString() === selectedRoleId)?.nombre || "Selecciona un puesto"}
           </Text>
         </TouchableOpacity>
@@ -211,10 +236,10 @@ export default function RegisterScreen() {
           animationType="slide"
           onRequestClose={() => setShowRoleModal(false)}
         >
-          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <View style={{ backgroundColor: '#fff', maxHeight: '80%', borderTopLeftRadius: 20, borderTopRightRadius: 20 }}>
-              <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#ccc', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Selecciona tu puesto</Text>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: modalOverlayBg }}>
+            <View style={{ backgroundColor: modalSheetBg, maxHeight: '80%', borderTopLeftRadius: 20, borderTopRightRadius: 20 }}>
+              <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: modalBorderColor, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: modalHeaderColor }}>Selecciona tu puesto</Text>
                 <TouchableOpacity onPress={() => setShowRoleModal(false)}>
                   <Text style={{ fontSize: 28, color: '#007AFF' }}>×</Text>
                 </TouchableOpacity>
@@ -226,7 +251,7 @@ export default function RegisterScreen() {
                     style={{
                       padding: 12,
                       marginVertical: 8,
-                      backgroundColor: selectedRoleId === role.id.toString() ? '#007AFF' : '#f0f0f0',
+                      backgroundColor: selectedRoleId === role.id.toString() ? '#007AFF' : (isDark ? '#2E3033' : '#f0f0f0'),
                       borderRadius: 8,
                     }}
                     onPress={() => {
@@ -236,7 +261,7 @@ export default function RegisterScreen() {
                   >
                     <Text style={{
                       fontSize: 16,
-                      color: selectedRoleId === role.id.toString() ? '#fff' : '#333',
+                      color: selectedRoleId === role.id.toString() ? '#fff' : (isDark ? '#ECEDEE' : '#333'),
                       fontWeight: selectedRoleId === role.id.toString() ? 'bold' : 'normal',
                     }}>
                       {role.nombre}
