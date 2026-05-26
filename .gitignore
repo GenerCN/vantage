@@ -50,3 +50,11 @@ RLS_SETUP_INSTRUCTIONS.md
 # IDEs
 .vscode/
 .idea/
+
+# JSON 
+ConexionArduino.json
+Documentacion_Completa_Vantage.json
+Documentos_Exposicion_Vantage.json
+
+#Docs
+Documentacion_Completa_Vantage.docx

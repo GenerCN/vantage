@@ -25,6 +25,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { Colors, Fonts, T } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { resetDatabase } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
 import { authService } from '@/services/authService';
 import { perfilService, type Perfil } from '@/services/perfilService';
@@ -285,6 +286,11 @@ export default function ProfileScreen() {
         text: "Salir",
         style: "destructive",
         onPress: async () => {
+          try {
+            await resetDatabase(); // Limpiar base de datos local SQLite al salir
+          } catch (dbError) {
+            console.error("Error al reiniciar base de datos local:", dbError);
+          }
           const { error } = await authService.signOut();
           if (error) {
             Alert.alert("Error", "No se pudo cerrar la sesión.");
