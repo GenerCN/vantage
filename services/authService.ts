@@ -4,7 +4,7 @@ export const authService = {
   /**
    * Registra un usuario con username y contraseña.
    */
-  async signUp(username: string, password: string, fullName: string) {
+  async signUp(username: string, password: string, fullName: string, roleId?: number) {
     // Generar email automático basado en username
     const email = `${username}@vantage.com`;
     
@@ -15,6 +15,7 @@ export const authService = {
         data: {
           full_name: fullName,
           username: username,
+          role_id: roleId,
         },
       },
     });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
 import { T } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface Props {
   label: string;
@@ -8,9 +9,13 @@ interface Props {
   variant?: 'primary' | 'danger' | 'outline';
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  textColor?: string;
 }
 
-export function PrimaryButton({ label, onPress, variant = 'primary', style, disabled }: Props) {
+export function PrimaryButton({ label, onPress, variant = 'primary', style, disabled, textColor }: Props) {
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+
   const btnStyle = [
     styles.btn,
     variant === 'danger'  && styles.danger,
@@ -18,10 +23,12 @@ export function PrimaryButton({ label, onPress, variant = 'primary', style, disa
     disabled              && styles.disabled,
     style,
   ];
+  
   const txtStyle = [
     styles.text,
-    variant === 'outline' && styles.outlineText,
+    variant === 'outline' && { color: isDark ? '#ECEDEE' : T.text },
     variant === 'danger'  && styles.dangerText,
+    textColor             && { color: textColor },
   ];
 
   return (
@@ -55,6 +62,5 @@ const styles = StyleSheet.create({
     fontWeight: T.weightSemi,
     letterSpacing: 0.2,
   },
-  outlineText: { color: T.text },
   dangerText:  { color: '#fff' },
 });

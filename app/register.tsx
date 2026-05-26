@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 // Importamos los estilos desde la carpeta independiente
+import { perfilService } from "../services/perfilService";
 import { authService } from "../services/authService";
 import type { Rol } from "../services/rolesService";
 import { styles } from "../styles/StyleRegister";
@@ -70,12 +71,28 @@ export default function RegisterScreen() {
     try {
       const nombreCompleto = `${firstName} ${middleName} ${firstLastName} ${secondLastName}`.replace(/\s+/g, ' ').trim();
       
-      // 1. Registrar en Supabase Auth
-      const { data, error } = await authService.signUp(username, password, nombreCompleto);
+      // 1. Registrar en Supabase Auth pasando el rol seleccionado
+      const { data, error } = await authService.signUp(
+        username,
+        password,
+        nombreCompleto,
+        parseInt(selectedRoleId)
+      );
 
       if (error) throw error;
 
       if (data.user) {
+        // Guardar de inmediato en la tabla 'perfiles'
+        try {
+          await perfilService.upsertPerfil({
+            id: data.user.id,
+            nombre_completo: nombreCompleto,
+            role_id: parseInt(selectedRoleId),
+          });
+        } catch (perfilError) {
+          console.error("Error creando perfil en registro:", perfilError);
+        }
+
         // 2. Éxito - Navegar a la pantalla de éxito
         const selectedRole = roles.find(r => r.id.toString() === selectedRoleId);
         router.replace({
