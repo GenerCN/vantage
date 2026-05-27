@@ -1,6 +1,6 @@
 import { checkNetworkConnection } from "@/hooks/useNetworkState";
 import {
-  Producto,
+  type Producto,
   cleanupSyncQueue,
   deleteProducto,
   deleteProductoLocally,
@@ -14,6 +14,8 @@ import {
   searchProductos,
   updateProducto
 } from "@/lib/sqlite/productosDb";
+export type { Producto };
+
 import { supabase } from "@/lib/supabase";
 
 /**

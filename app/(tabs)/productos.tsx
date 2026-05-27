@@ -1,7 +1,9 @@
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,7 +18,7 @@ import {
   useColorScheme,
   View
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterTabs } from "@/components/ui/FilterTabs";
@@ -32,6 +34,7 @@ import {
   useNetworkState,
 } from "@/hooks/useNetworkState";
 import { supabase } from "@/lib/supabase";
+import { estantesService } from "@/services/estantesService";
 import {
   createProducto,
   deleteProductoFromLocalOnly,
@@ -44,6 +47,24 @@ import {
   type CreateProductoInput,
   type ProductoStats,
 } from "@/services/productosService";
+
+
+// Diccionario de internacionalización para evitar textos crudos en JSX
+const TXT = {
+  estante: "Estante",
+  noShelvesWarning: "⚠️ No hay celdas registradas. Créala en la pestaña \"IoT\".",
+  noShelvesWarningDetail: "⚠️ No hay celdas de carga (estantes) registradas. Regístrala primero en la pestaña \"IoT / Estantes\".",
+  none: "Ninguno",
+  linkShelfTitle: "Vincular a Celda de Carga",
+  linkShelfDescPre: "Selecciona en qué celda de carga (estante inteligente) deseas colocar el producto \"",
+  linkShelfDescPost: "\".",
+  close: "Cerrar",
+  linkCell: "📡 Vincular Celda",
+  cellLabel: "⚖️ Celda: ",
+  macPrefix: "📡 MAC: ",
+  locationPrefix: "📍 Ubicación: ",
+  noLocation: "Sin ubicación física",
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Interfaz que coincide con Supabase
@@ -85,10 +106,16 @@ const ProductCard = ({
   item,
   onDelete,
   onEdit,
+  linkedShelf,
+  onLinkShelf,
+  onUnlinkShelf,
 }: {
   item: Product;
   onDelete: (id: string) => void;
   onEdit?: (product: Product) => void;
+  linkedShelf?: { estante_id: string; mac_address: string; ubicacion_fisica: string | null } | null;
+  onLinkShelf?: (product: Product) => void;
+  onUnlinkShelf?: (estanteId: string, productId: string) => void;
 }) => {
   const s = stockStatus(item);
   const colorScheme = useColorScheme() ?? 'light';
@@ -102,49 +129,77 @@ const ProductCard = ({
 
   return (
     <View style={[styles.card, { borderTopColor: borderBottomColor }]}>
-      <View style={[styles.cardIconBox, { backgroundColor: cardIconBoxBg }]}>
-        <Text style={styles.cardIcon}>📦</Text>
-      </View>
-      <View style={styles.cardBody}>
-        <Text style={[styles.cardName, { color: textColor }]} numberOfLines={1}>
-          {item.nombre}
-        </Text>
-        <Text style={[styles.cardSku, { color: textMutedColor }]}>{item.peso_individual_gramos}g</Text>
-        <View style={styles.cardTags}>
-          <Text style={[styles.categoryTag, { color: textSecondaryColor, backgroundColor: categoryTagBg }]}>
-            Stock mín: {item.stock_minimo}
-          </Text>
-          <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
-            <Text style={[styles.statusText, { color: s.color }]}>
-              {s.label}
-            </Text>
-          </View>
+      {/* Fila principal */}
+      <View style={styles.cardMainRow}>
+        <View style={[styles.cardIconBox, { backgroundColor: cardIconBoxBg }]}>
+          <Text style={styles.cardIcon}>📦</Text>
         </View>
-      </View>
-      <View style={styles.cardRight}>
-        <Text style={[styles.cardPrice, { color: textSecondaryColor }]}>
-          {new Date(item.creado_en || "").toLocaleDateString()}
-        </Text>
-      </View>
-      <View style={styles.cardActions}>
-        {onEdit && (
+        <View style={styles.cardBody}>
+          <Text style={[styles.cardName, { color: textColor }]} numberOfLines={1}>
+            {item.nombre}
+          </Text>
+          <Text style={[styles.cardSku, { color: textMutedColor }]}>
+            {item.peso_individual_gramos}g • {new Date(item.creado_en || "").toLocaleDateString()}
+          </Text>
+        </View>
+        <View style={styles.cardActions}>
+          {onEdit && (
+            <TouchableOpacity
+              onPress={() => onEdit(item)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.editBtn}>✏️</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            onPress={() => onEdit(item)}
+            onPress={() => onDelete(item.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={styles.editBtn}>✏️</Text>
+            <Text style={styles.deleteBtn}>🗑️</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Fila de etiquetas (badges) alineada con el texto */}
+      <View style={styles.cardTagsRow}>
+        <Text style={[styles.categoryTag, { color: textSecondaryColor, backgroundColor: categoryTagBg }]}>
+          Stock mín: {item.stock_minimo}
+        </Text>
+        <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
+          <Text style={[styles.statusText, { color: s.color }]}>
+            {s.label}
+          </Text>
+        </View>
+
+        {/* Badge / Botón de Celda de Carga */}
+        {linkedShelf ? (
+          <View style={[styles.statusBadge, { backgroundColor: T.primaryLight, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+            <Text style={[styles.statusText, { color: T.primary }]}>
+              {TXT.cellLabel}{linkedShelf.ubicacion_fisica || `MAC ${linkedShelf.mac_address.slice(-5)}`}
+            </Text>
+            <TouchableOpacity 
+              onPress={() => onUnlinkShelf && onUnlinkShelf(linkedShelf.estante_id, item.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={{ fontSize: 12, color: T.danger, fontWeight: 'bold' }}> ✕</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity 
+            style={[styles.statusBadge, { backgroundColor: isDark ? '#2E3033' : T.surfaceAlt, borderWidth: 1, borderColor: isDark ? '#3E4145' : T.border }]}
+            onPress={() => onLinkShelf && onLinkShelf(item)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.statusText, { color: textSecondaryColor }]}>
+              {TXT.linkCell}
+            </Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          onPress={() => onDelete(item.id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.deleteBtn}>🗑️</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
 };
+
 
 // ─── Helpers para Historial ──────────────────────────────────────────────────
 const formatLogDate = (dateStr: string) => {
@@ -194,7 +249,7 @@ const ProductLogCard = ({ item }: { item: ProductLog }) => {
     emoji = "🗑️";
   }
 
-  const displayUser = item.usuario_nombre 
+  const displayUser = item.usuario_nombre
     ? `${item.usuario_nombre}${item.usuario_username ? ` (${item.usuario_username})` : ""}`
     : "Sistema / Anon";
 
@@ -243,8 +298,10 @@ const EMPTY_FORM = { nombre: "", peso_individual_gramos: "", stock_minimo: "" };
 interface EditProductModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (p: Partial<Product>) => Promise<void>;
+  onSave: (p: Partial<Product>, estanteId?: string) => Promise<void>;
   product: Product | null;
+  shelves: any[];
+  initialShelfId: string;
   isLoading?: boolean;
 }
 
@@ -253,11 +310,14 @@ const EditProductModal = ({
   onClose,
   onSave,
   product,
+  shelves,
+  initialShelfId,
   isLoading = false,
 }: EditProductModalProps) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [selectedShelfId, setSelectedShelfId] = useState("");
 
   useEffect(() => {
     if (product) {
@@ -266,8 +326,9 @@ const EditProductModal = ({
         peso_individual_gramos: product.peso_individual_gramos.toString(),
         stock_minimo: product.stock_minimo.toString(),
       });
+      setSelectedShelfId(initialShelfId || "");
     }
-  }, [product, visible]);
+  }, [product, visible, initialShelfId]);
 
   const set = (key: keyof typeof EMPTY_FORM) => (val: string) => {
     setForm((p) => ({ ...p, [key]: val }));
@@ -296,7 +357,7 @@ const EditProductModal = ({
         nombre: form.nombre.trim(),
         peso_individual_gramos: Number(form.peso_individual_gramos),
         stock_minimo: Number(form.stock_minimo),
-      });
+      }, selectedShelfId);
       onClose();
     } catch (error) {
       console.error("Error guardando producto:", error);
@@ -308,6 +369,7 @@ const EditProductModal = ({
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
+    setSelectedShelfId("");
     setErrors({});
     onClose();
   };
@@ -378,6 +440,50 @@ const EditProductModal = ({
               error={errors.stock_minimo}
               required
             />
+
+            {/* Selector de Celda / Estante */}
+            <Text style={[styles.inputLabel, { color: textColor, marginTop: T.md }]}>
+              {TXT.estante}
+            </Text>
+            {shelves.length === 0 ? (
+              <Text style={{ color: T.textMuted, fontSize: T.fontXs, marginBottom: T.md }}>
+                {TXT.noShelvesWarning}
+              </Text>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginVertical: T.sm, maxHeight: 50 }}
+                contentContainerStyle={{ gap: T.sm, paddingRight: 20 }}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.chip,
+                    selectedShelfId === "" && styles.chipActive
+                  ]}
+                  onPress={() => setSelectedShelfId("")}
+                >
+                  <Text style={[styles.chipText, selectedShelfId === "" && styles.chipTextActive]}>
+                    {TXT.none}
+                  </Text>
+                </TouchableOpacity>
+                {shelves.map((s) => (
+                  <TouchableOpacity
+                    key={s.estante_id}
+                    style={[
+                      styles.chip,
+                      selectedShelfId === s.estante_id && styles.chipActive
+                    ]}
+                    onPress={() => setSelectedShelfId(s.estante_id)}
+                  >
+                    <Text style={[styles.chipText, selectedShelfId === s.estante_id && styles.chipTextActive]}>
+                      📍 {s.ubicacion_fisica || `MAC ${s.mac_address.slice(-5)}`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
             <PrimaryButton
               label={saving ? "Guardando..." : "Guardar Cambios"}
               onPress={handleSubmit}
@@ -395,16 +501,19 @@ const AddProductModal = ({
   visible,
   onClose,
   onAdd,
+  shelves,
   isLoading = false,
 }: {
   visible: boolean;
   onClose: () => void;
-  onAdd: (p: CreateProductoInput) => Promise<void>;
+  onAdd: (p: CreateProductoInput, estanteId?: string) => Promise<void>;
+  shelves: any[];
   isLoading?: boolean;
 }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [selectedShelfId, setSelectedShelfId] = useState("");
 
   const set = (key: keyof typeof EMPTY_FORM) => (val: string) => {
     setForm((p) => ({ ...p, [key]: val }));
@@ -433,8 +542,9 @@ const AddProductModal = ({
         nombre: form.nombre.trim(),
         peso_individual_gramos: Number(form.peso_individual_gramos),
         stock_minimo: Number(form.stock_minimo),
-      });
+      }, selectedShelfId);
       setForm(EMPTY_FORM);
+      setSelectedShelfId("");
       setErrors({});
       onClose();
     } catch (error) {
@@ -447,6 +557,7 @@ const AddProductModal = ({
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
+    setSelectedShelfId("");
     setErrors({});
     onClose();
   };
@@ -517,6 +628,50 @@ const AddProductModal = ({
               error={errors.stock_minimo}
               required
             />
+
+            {/* Selector de Celda / Estante */}
+            <Text style={[styles.inputLabel, { color: textColor, marginTop: T.md }]}>
+              {TXT.estante}
+            </Text>
+            {shelves.length === 0 ? (
+              <Text style={{ color: T.textMuted, fontSize: T.fontXs, marginBottom: T.md }}>
+                {TXT.noShelvesWarning}
+              </Text>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginVertical: T.sm, maxHeight: 50 }}
+                contentContainerStyle={{ gap: T.sm, paddingRight: 20 }}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.chip,
+                    selectedShelfId === "" && styles.chipActive
+                  ]}
+                  onPress={() => setSelectedShelfId("")}
+                >
+                  <Text style={[styles.chipText, selectedShelfId === "" && styles.chipTextActive]}>
+                    {TXT.none}
+                  </Text>
+                </TouchableOpacity>
+                {shelves.map((s) => (
+                  <TouchableOpacity
+                    key={s.estante_id}
+                    style={[
+                      styles.chip,
+                      selectedShelfId === s.estante_id && styles.chipActive
+                    ]}
+                    onPress={() => setSelectedShelfId(s.estante_id)}
+                  >
+                    <Text style={[styles.chipText, selectedShelfId === s.estante_id && styles.chipTextActive]}>
+                      📍 {s.ubicacion_fisica || `MAC ${s.mac_address.slice(-5)}`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
             <PrimaryButton
               label={saving ? "Guardando..." : "Guardar Producto"}
               onPress={handleSubmit}
@@ -532,8 +687,14 @@ const AddProductModal = ({
 
 // ─── Pantalla Principal ───────────────────────────────────────────────────────
 export default function ProductosScreen() {
+  const isFocused = useIsFocused();
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
+
+  // Colores dinámicos del tema para modales
+  const headingColor = isDark ? "#FFF" : T.text;
+  const descriptionColor = isDark ? "#9BA1A6" : T.textSecondary;
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -544,6 +705,75 @@ export default function ProductosScreen() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productLogs, setProductLogs] = useState<ProductLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+
+  // Estados para estantes (IoT)
+  const [shelves, setShelves] = useState<any[]>([]);
+  const [selectedProductToLink, setSelectedProductToLink] = useState<Product | null>(null);
+  const [linkShelfModalVisible, setLinkShelfModalVisible] = useState(false);
+
+  const productShelfMap = useMemo(() => {
+    const map = new Map<string, any>();
+    shelves.forEach((s) => {
+      if (s.producto_id) {
+        map.set(s.producto_id, {
+          estante_id: s.estante_id,
+          mac_address: s.mac_address,
+          ubicacion_fisica: s.ubicacion_fisica,
+        });
+      }
+    });
+    return map;
+  }, [shelves]);
+
+  function handleLinkShelfInitiate(product: Product) {
+    setSelectedProductToLink(product);
+    setLinkShelfModalVisible(true);
+  }
+
+  async function handleConfirmLinkShelf(estanteId: string) {
+    if (!selectedProductToLink) return;
+    try {
+      setLoading(true);
+      const success = await estantesService.linkProductToShelf(estanteId, selectedProductToLink.id);
+      setLinkShelfModalVisible(false);
+      setSelectedProductToLink(null);
+      await loadProductos();
+      if (success) {
+        Alert.alert("Celda Vinculada", "El producto fue asociado exitosamente al estante.");
+      } else {
+        Alert.alert("Error", "No se pudo vincular la celda.");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUnlinkShelfProduct(estanteId: string, productId: string) {
+    Alert.alert(
+      "Desvincular Celda",
+      "¿Seguro que deseas quitar este producto de la celda de carga?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await estantesService.unlinkProductFromShelf(estanteId, productId);
+              await loadProductos();
+            } catch (e) {
+              console.error(e);
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  }
 
   const params = useLocalSearchParams();
 
@@ -563,6 +793,16 @@ export default function ProductosScreen() {
 
   // Monitorear cambios de conexión
   const networkState = useNetworkState(handleNetworkRestore);
+
+  // Recargar productos y estantes cuando la pantalla esté enfocada
+  useEffect(() => {
+    if (isFocused) {
+      loadProductos();
+      if (filter === "historial") {
+        loadProductLogs();
+      }
+    }
+  }, [isFocused, filter]);
 
   // Cargar productos al iniciar y suscribirse a cambios en tiempo real
   useEffect(() => {
@@ -600,6 +840,10 @@ export default function ProductosScreen() {
     try {
       setLoading(true);
       let data = await getProductos();
+
+      // Descargar también celdas/estantes activos
+      const dataShelves = await estantesService.getEstantes();
+      setShelves(dataShelves);
 
       // Si no hay productos en SQLite pero hay conexión, descargar de Supabase
       if (data.length === 0) {
@@ -715,18 +959,17 @@ export default function ProductosScreen() {
   }
 
   // Agregar producto
-  async function handleAddProducto(input: CreateProductoInput) {
+  async function handleAddProducto(input: CreateProductoInput, estanteId?: string) {
     try {
       const newProducto = await createProducto(input);
       if (newProducto) {
-        // Agregar al estado local inmediatamente
-        setProducts((prev) => [newProducto as Product, ...prev]);
-        // Actualizar estadísticas
-        setStats((prev) => ({
-          ...prev,
-          total: prev.total + 1,
-        }));
-        console.log("✅ Producto agregado");
+        // Vincular estante si fue seleccionado
+        if (estanteId && estanteId.trim() !== "") {
+          await estantesService.linkProductToShelf(estanteId, newProducto.id);
+        }
+        // Recargar datos
+        await loadProductos();
+        console.log("✅ Producto agregado y vinculado");
       }
     } catch (error) {
       console.error("Error agregando producto:", error);
@@ -742,8 +985,8 @@ export default function ProductosScreen() {
 
   // Guardar cambios de producto
 
-    // Guardar cambios con confirmación
-  async function handleSaveProducto(updates: Partial<Product>) {
+  // Guardar cambios con confirmación
+  async function handleSaveProducto(updates: Partial<Product>, estanteId?: string) {
     if (!editingProduct) return;
 
     // Pedir confirmación
@@ -751,10 +994,10 @@ export default function ProductosScreen() {
       "Confirmar cambios",
       "¿Deseas guardar los cambios en este producto?",
       [
-        { text: "Cancelar", onPress: () => {}, style: "cancel" },
+        { text: "Cancelar", onPress: () => { }, style: "cancel" },
         {
           text: "Guardar",
-          onPress: () => performSaveProducto(editingProduct.id, updates),
+          onPress: () => performSaveProducto(editingProduct.id, updates, estanteId),
           style: "default",
         },
       ]
@@ -764,20 +1007,35 @@ export default function ProductosScreen() {
   // Realizar guardado después de confirmación
   async function performSaveProducto(
     productId: string,
-    updates: Partial<Product>
+    updates: Partial<Product>,
+    estanteId?: string
   ) {
     try {
       const updated = await updateProductoService(productId, updates);
       if (updated) {
-        // Actualizar en la lista local
-        setProducts((prev) =>
-          prev.map((p) =>
-            p.id === productId ? { ...p, ...updates } : p
-          )
-        );
+        // Obtener la vinculación actual de este producto con algún estante
+        const currentLinked = productShelfMap.get(productId);
+
+        if (estanteId && estanteId.trim() !== "") {
+          if (estanteId !== currentLinked?.estante_id) {
+            // Si estaba en otro estante, desvincularlo primero
+            if (currentLinked?.estante_id) {
+              await estantesService.unlinkProductFromShelf(currentLinked.estante_id, productId);
+            }
+            // Vincular al nuevo estante
+            await estantesService.linkProductToShelf(estanteId, productId);
+          }
+        } else {
+          // Si seleccionó "Ninguno" pero estaba vinculado a uno, desvincularlo
+          if (currentLinked?.estante_id) {
+            await estantesService.unlinkProductFromShelf(currentLinked.estante_id, productId);
+          }
+        }
+
+        await loadProductos();
         setEditModal(false);
         setEditingProduct(null);
-        console.log("✅ Producto actualizado");
+        console.log("✅ Producto actualizado y estante calibrado");
       }
     } catch (error) {
       console.error("Error actualizando producto:", error);
@@ -823,7 +1081,7 @@ export default function ProductosScreen() {
       "Confirmar eliminación",
       "¿Estás seguro de que deseas eliminar este producto?",
       [
-        { text: "Cancelar", onPress: () => {}, style: "cancel" },
+        { text: "Cancelar", onPress: () => { }, style: "cancel" },
         {
           text: "Eliminar",
           onPress: () => handleDeleteProducto(id),
@@ -949,6 +1207,9 @@ export default function ProductosScreen() {
                 item={item}
                 onDelete={handleDeleteConfirmation}
                 onEdit={handleEditProducto}
+                linkedShelf={productShelfMap.get(item.id)}
+                onLinkShelf={handleLinkShelfInitiate}
+                onUnlinkShelf={handleUnlinkShelfProduct}
               />
             ))
           )}
@@ -961,6 +1222,7 @@ export default function ProductosScreen() {
         visible={modal}
         onClose={() => setModal(false)}
         onAdd={handleAddProducto}
+        shelves={shelves}
         isLoading={loading}
       />
       <EditProductModal
@@ -968,7 +1230,61 @@ export default function ProductosScreen() {
         onClose={() => setEditModal(false)}
         onSave={handleSaveProducto}
         product={editingProduct}
+        shelves={shelves}
+        initialShelfId={editingProduct ? productShelfMap.get(editingProduct.id)?.estante_id || "" : ""}
       />
+
+      {/* ─── MODAL DE VINCULACIÓN A CELDA (ESTANTE) ─── */}
+      <Modal visible={linkShelfModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: isDark ? "#1E2022" : T.surface }]}>
+            <Text style={[styles.modalTitle, { color: headingColor }]}>{TXT.linkShelfTitle}</Text>
+            <Text style={[styles.modalDesc, { color: descriptionColor }]}>
+              {TXT.linkShelfDescPre}{selectedProductToLink?.nombre}{TXT.linkShelfDescPost}
+            </Text>
+
+            {shelves.length === 0 ? (
+              <View style={{ width: "100%", alignItems: "center", marginVertical: 20 }}>
+                <Text style={{ color: descriptionColor, fontSize: 14, textAlign: "center", marginBottom: 15 }}>
+                  {TXT.noShelvesWarningDetail}
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={shelves}
+                keyExtractor={(s) => s.estante_id}
+                style={{ width: "100%", marginVertical: T.md, maxHeight: 250 }}
+                renderItem={({ item: shelf }) => (
+                  <TouchableOpacity
+                    style={styles.productListItem}
+                    onPress={() => handleConfirmLinkShelf(shelf.estante_id)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.productListName, { color: headingColor }]}>
+                        {TXT.macPrefix}{shelf.mac_address}
+                      </Text>
+                      <Text style={[styles.productListWeight, { color: descriptionColor }]}>
+                        {TXT.locationPrefix}{shelf.ubicacion_fisica || TXT.noLocation}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 16 }}>➡️</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+
+            <TouchableOpacity
+              style={[styles.modalBtn, styles.modalBtnCancel, { width: "100%", flex: 0, marginTop: T.sm }]}
+              onPress={() => {
+                setLinkShelfModalVisible(false);
+                setSelectedProductToLink(null);
+              }}
+            >
+              <Text style={[styles.modalBtnText, { color: descriptionColor }]}>{TXT.close}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1012,22 +1328,35 @@ const styles = StyleSheet.create({
 
   // Product card
   card: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
+    alignItems: "stretch",
     paddingVertical: T.md,
     borderTopWidth: 1,
     borderTopColor: T.separator,
   },
+  cardMainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  cardTagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: T.sm,
+    marginTop: T.sm,
+    paddingLeft: 64,
+  },
   cardIconBox: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
     borderRadius: T.radiusMd,
     backgroundColor: T.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: T.md,
+    marginRight: 12,
   },
-  cardIcon: { fontSize: 20 },
+  cardIcon: { fontSize: 26 },
   cardBody: { flex: 1 },
   cardName: { fontSize: T.fontMd, fontWeight: T.weightSemi, color: T.text },
   cardSku: { fontSize: T.fontXs, color: T.textMuted, marginTop: 1 },
@@ -1038,24 +1367,24 @@ const styles = StyleSheet.create({
     marginTop: T.xs + 2,
   },
   categoryTag: {
-    fontSize: T.fontXs,
+    fontSize: T.fontXs + 1,
     color: T.textSecondary,
     backgroundColor: T.surfaceAlt,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: T.radiusSm - 2,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+    borderRadius: T.radiusSm,
   },
   statusBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: T.radiusSm - 2,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+    borderRadius: T.radiusSm,
   },
-  statusText: { fontSize: T.fontXs, fontWeight: T.weightSemi },
+  statusText: { fontSize: T.fontXs + 1, fontWeight: T.weightSemi },
   cardRight: { alignItems: "flex-end", marginRight: T.md },
   cardPrice: { fontSize: T.fontSm, color: T.textSecondary, marginTop: T.xs },
   cardActions: { flexDirection: "row", gap: T.sm },
-  editBtn: { fontSize: 18, padding: T.sm },
-  deleteBtn: { fontSize: 18, padding: T.sm },
+  editBtn: { fontSize: 21, padding: T.sm },
+  deleteBtn: { fontSize: 21, padding: T.sm },
 
   // Modal
   overlay: { flex: 1, justifyContent: "flex-end" },
@@ -1122,6 +1451,13 @@ const styles = StyleSheet.create({
     color: T.textSecondary,
   },
   chipTextActive: { color: "#fff" },
+  inputLabel: {
+    fontSize: T.fontSm,
+    fontWeight: T.weightBold,
+    color: T.textSecondary,
+    marginBottom: T.xs,
+  },
+
 
   // Historial styles
   logCard: {
@@ -1176,5 +1512,59 @@ const styles = StyleSheet.create({
   logCardDate: {
     fontSize: T.fontXs + 1,
     color: T.textMuted,
+  },
+
+  // Modal IoT en productos
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: T.xl,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    width: "100%",
+    borderRadius: T.radiusLg,
+    padding: T.xl,
+    alignItems: "flex-start",
+  },
+  modalTitle: {
+    fontSize: T.fontXl,
+    fontWeight: T.weightBold,
+    marginBottom: T.xs,
+  },
+  modalDesc: {
+    fontSize: T.fontSm,
+    lineHeight: 18,
+    marginBottom: T.lg,
+  },
+  modalBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: T.radiusMd,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnCancel: {
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  modalBtnText: {
+    fontSize: T.fontMd,
+    fontWeight: T.weightBold,
+  },
+  productListItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: T.md,
+    width: "100%",
+  },
+  productListName: {
+    fontSize: T.fontMd,
+    fontWeight: T.weightBold,
+  },
+  productListWeight: {
+    fontSize: T.fontXs,
+    marginTop: 4,
   },
 });

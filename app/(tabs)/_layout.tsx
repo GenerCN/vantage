@@ -49,6 +49,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="iot"
+        options={{
+          title: "Estantes",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="cpu" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Perfil",
