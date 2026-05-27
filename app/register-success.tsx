@@ -1,14 +1,32 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { StatusBar, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import { useEffect } from "react";
+import { BackHandler, StatusBar, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Importamos nuestros nuevos estilos
 import { styles } from "../styles/StyleRegisterSuccess";
 
 export default function RegisterSuccessScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Aquí recibimos los datos que nos mandó la pantalla anterior
   const { fullName, username, password } = useLocalSearchParams();
+
+  // Interceptar botón de atrás físico en Android para ir al home en vez de crashear por falta de historial
+  useEffect(() => {
+    const backAction = () => {
+      router.replace("/(tabs)/home");
+      return true; // Bloquea la acción por defecto
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, []);
 
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
@@ -23,7 +41,7 @@ export default function RegisterSuccessScreen() {
   const valueColor = isDark ? "#ECEDEE" : "#333333";
 
   return (
-    <View style={[styles.container, { backgroundColor: containerBg }]}>
+    <View style={[styles.container, { backgroundColor: containerBg, paddingBottom: Math.max(insets.bottom, 20) }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={containerBg} />
       <Text style={[styles.title, { color: titleColor }]}>¡Registro Exitoso!</Text>
 
