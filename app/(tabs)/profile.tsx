@@ -338,8 +338,8 @@ export default function ProfileScreen() {
         ) : (
           /* Tarjeta de perfil */
           <SectionCard style={{ flexDirection: 'row', alignItems: 'center', gap: T.md }}>
-            <View style={[styles.avatar, { backgroundColor: ui.primary }]}>
-              <ThemedText style={styles.avatarText}>👤</ThemedText>
+            <View style={[styles.avatar, { backgroundColor: ui.primary, justifyContent: 'center', alignItems: 'center' }]}>
+              <MaterialIcons name="person" size={28} color="#fff" />
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <ThemedText type="subtitle" style={styles.profileName}>

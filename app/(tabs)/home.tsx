@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatChip } from '@/components/ui/StatChip';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GlobalStyles, T } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { getMovimientos, downloadMovimientosFromSupabase, type Movimiento } from '@/services/movimientosService';
@@ -50,7 +51,7 @@ const QuickActionCard = ({
   onPress,
 }: {
   label: string;
-  icon: string;
+  icon: any;
   bg: string;
   accent: string;
   onPress: () => void;
@@ -66,7 +67,7 @@ const QuickActionCard = ({
       activeOpacity={0.75}
     >
       <View style={[styles.actionIconBox, { backgroundColor: accent + '20' }]}>
-        <Text style={styles.actionIcon}>{icon}</Text>
+        <IconSymbol name={icon} size={18} color={accent} />
       </View>
       <Text style={[styles.actionLabel, { color: textColor }]}>{label}</Text>
     </TouchableOpacity>
@@ -216,21 +217,21 @@ export default function HomeScreen() {
         label: 'Productos',
         color: T.primary,
         bg: isDark ? '#112F30' : T.primaryLight,
-        icon: '📦',
+        icon: 'cube.box.fill',
       },
       {
         value: bajoStockCount.toString(),
         label: 'Bajo stock',
         color: T.warning,
         bg: isDark ? '#3E2A00' : T.warningBg,
-        icon: '⚠️',
+        icon: 'exclamationmark.triangle',
       },
       {
         value: totalMovements.toString(),
         label: 'Movimientos',
         color: T.success,
         bg: isDark ? '#14331C' : T.successBg,
-        icon: '🔄',
+        icon: 'arrow.right.circle.fill',
       },
     ];
   }, [products, movements, isDark]);
@@ -286,12 +287,13 @@ export default function HomeScreen() {
           <View>
             <Text style={[styles.greeting, { color: greetingColor }]}>Buenos días,</Text>
             <Text style={[styles.warehouseName, { color: headingColor }]}>Almacén Central</Text>
-            <View style={[styles.dateBadge, { backgroundColor: dateBadgeBg }]}>
-              <Text style={[styles.dateText, { color: dateTextColor }]}>📅  {today}</Text>
+            <View style={[styles.dateBadge, { backgroundColor: dateBadgeBg, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+              <IconSymbol name="calendar" size={14} color={dateTextColor} />
+              <Text style={[styles.dateText, { color: dateTextColor, marginTop: 0 }]}>{today}</Text>
             </View>
           </View>
           <TouchableOpacity style={[styles.bellBtn, { backgroundColor: bellBg }]}>
-            <Text style={{ fontSize: 18 }}>🔔</Text>
+            <IconSymbol name="bell.fill" size={20} color={isDark ? '#ECEDEE' : T.text} />
           </TouchableOpacity>
         </View>
 
@@ -316,14 +318,14 @@ export default function HomeScreen() {
         <View style={styles.actionsGrid}>
           <QuickActionCard
             label="Nuevo producto"
-            icon="➕"
+            icon="plus"
             bg={isDark ? '#112F30' : T.primaryLight}
             accent={T.primary}
             onPress={() => router.push({ pathname: '/(tabs)/productos', params: { openModal: 'true' } })}
           />
           <QuickActionCard
             label="Ver todos los productos"
-            icon="🔍"
+            icon="list.bullet"
             bg={isDark ? '#2E3033' : T.surfaceAlt}
             accent={T.textSecondary}
             onPress={() => router.push('/(tabs)/productos')}

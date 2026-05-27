@@ -14,12 +14,16 @@ export function IconSymbol({
   style?: StyleProp<ViewStyle>;
   weight?: SymbolWeight;
 }) {
+  // En iOS, el símbolo nativo 'scale.3d' representa ejes tridimensionales (tres nodos conectados).
+  // Lo interceptamos para renderizar 'scalemass', que es la báscula de pesaje oficial de Apple.
+  const iosName = name === ('scale.3d' as any) ? 'scalemass' : name;
+
   return (
     <SymbolView
       weight={weight}
       tintColor={color}
       resizeMode="scaleAspectFit"
-      name={name}
+      name={iosName}
       style={[
         {
           width: size,

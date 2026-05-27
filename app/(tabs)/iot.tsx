@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useIsFocused } from "@react-navigation/native";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,11 +17,11 @@ import {
   useColorScheme,
   View
 } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { GlobalStyles, Shadows, T } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { estantesService } from "@/services/estantesService";
@@ -88,7 +89,7 @@ export default function IotDashboardScreen() {
     try {
       // 1. Descargar datos frescos de la nube si hay red
       await estantesService.downloadEstantesFromSupabase();
-      
+
       // 2. Cargar estantes e inventarios de SQLite
       const dataShelves = await estantesService.getEstantes();
       setShelves(dataShelves);
@@ -222,7 +223,7 @@ export default function IotDashboardScreen() {
     // Validar dirección MAC básica
     const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
     const formattedMac = macInput.replace(/[-]/g, ":").toUpperCase().trim();
-    
+
     if (macInput.length >= 12 && !macRegex.test(formattedMac)) {
       // Intento de corrección para strings pegados de 12 caracteres (AABBCCDDEEFF)
       const clean = macInput.replace(/[^0-9A-Fa-f]/g, "").toUpperCase();
@@ -459,7 +460,8 @@ export default function IotDashboardScreen() {
             onPress={() => setRegisterModalVisible(true)}
             activeOpacity={0.8}
           >
-            <Text style={styles.addButtonText}>➕ Estante</Text>
+            <IconSymbol name="plus" size={14} color="#FFF" />
+            <Text style={[styles.addButtonText, { marginLeft: 4 }]}>Estante</Text>
           </TouchableOpacity>
         </View>
 
@@ -519,10 +521,16 @@ export default function IotDashboardScreen() {
                 {/* Cabecera Tarjeta */}
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.macText, { color: headingColor }]}>📡 MAC: {item.mac_address}</Text>
-                    <Text style={[styles.locationText, { color: descriptionColor }]}>
-                      📍 {item.ubicacion_fisica || "Sin ubicación física"}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <IconSymbol name="wifi" size={16} color={headingColor} />
+                      <Text style={[styles.macText, { color: headingColor, marginBottom: 0 }]}>MAC: {item.mac_address}</Text>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <IconSymbol name="mappin.and.ellipse" size={14} color={descriptionColor} />
+                      <Text style={[styles.locationText, { color: descriptionColor, marginTop: 0 }]}>
+                        {item.ubicacion_fisica || "Sin ubicación física"}
+                      </Text>
+                    </View>
                   </View>
 
                   <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
@@ -536,9 +544,9 @@ export default function IotDashboardScreen() {
                 <View style={styles.telemetryRow}>
                   {/* Báscula */}
                   <View style={styles.telemetryBox}>
-                    <Text style={styles.telemetryIcon}>⚖️</Text>
+                    <IconSymbol name="scale.3d" size={24} color={T.primary} style={{ marginRight: 8 }} />
                     <View>
-                      <Text style={[styles.telemetryLabel, { color: descriptionColor }]}>Báscula Peso</Text>
+                      <Text style={[styles.telemetryLabel, { color: descriptionColor }]}>Peso</Text>
                       <Text style={[styles.telemetryValue, { color: headingColor }]}>
                         {hasProduct ? `${(item.peso_total_gramos ?? 0).toFixed(1)} g` : "---"}
                       </Text>
@@ -547,7 +555,7 @@ export default function IotDashboardScreen() {
 
                   {/* Piezas */}
                   <View style={styles.telemetryBox}>
-                    <Text style={styles.telemetryIcon}>📦</Text>
+                    <IconSymbol name="cube.box.fill" size={24} color={T.primary} style={{ marginRight: 8 }} />
                     <View>
                       <Text style={[styles.telemetryLabel, { color: descriptionColor }]}>Piezas Físicas</Text>
                       <Text style={[styles.telemetryValue, { color: headingColor }]}>
@@ -569,9 +577,12 @@ export default function IotDashboardScreen() {
                   </View>
                 ) : (
                   <View style={[styles.productDetailsBox, { backgroundColor: isDark ? "#2A1818" : "#FEE2E2", borderStyle: "dashed", borderWidth: 1, borderColor: T.danger }]}>
-                    <Text style={[styles.productName, { color: T.danger, fontWeight: T.weightSemi }]}>
-                      ⚠️ Requiere Vincular Producto
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <IconSymbol name="exclamationmark.triangle" size={16} color={T.danger} />
+                      <Text style={[styles.productName, { color: T.danger, fontWeight: T.weightSemi, marginTop: 0 }]}>
+                        Requiere Vincular Producto
+                      </Text>
+                    </View>
                     <Text style={[styles.productMeta, { color: T.danger }]}>
                       Asigna un producto para enviar la tara y factor de peso al ESP32.
                     </Text>
@@ -582,31 +593,34 @@ export default function IotDashboardScreen() {
                 <View style={styles.cardActions}>
                   {hasProduct ? (
                     <TouchableOpacity
-                      style={[styles.actionBtn, styles.actionBtnDanger, { flex: 1.5 }]}
+                      style={[styles.actionBtn, styles.actionBtnDanger, { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 }]}
                       onPress={() => handleUnlinkProduct(item.estante_id, item.producto_id!)}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.actionBtnText, { color: T.danger }]}>🔗 Vaciar Estante</Text>
+                      <IconSymbol name="xmark" size={14} color={T.danger} />
+                      <Text style={[styles.actionBtnText, { color: T.danger, marginTop: 0 }]}>Vaciar Estante</Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
-                      style={[styles.actionBtn, styles.actionBtnPrimary, { flex: 1.5 }]}
+                      style={[styles.actionBtn, styles.actionBtnPrimary, { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 }]}
                       onPress={() => {
                         setSelectedShelfId(item.estante_id);
                         setLinkProductModalVisible(true);
                       }}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.actionBtnText, { color: T.primary }]}>🔗 Vincular Producto</Text>
+                      <IconSymbol name="link" size={14} color={T.primary} />
+                      <Text style={[styles.actionBtnText, { color: T.primary, marginTop: 0 }]}>Vincular Producto</Text>
                     </TouchableOpacity>
                   )}
 
                   <TouchableOpacity
-                    style={[styles.actionBtn, styles.actionBtnOutline, { flex: 1 }]}
+                    style={[styles.actionBtn, styles.actionBtnOutline, { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 }]}
                     onPress={() => handleDeleteShelf(item.estante_id, item.mac_address)}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.actionBtnText, { color: descriptionColor }]}>🗑️ Eliminar</Text>
+                    <IconSymbol name="trash" size={14} color={descriptionColor} />
+                    <Text style={[styles.actionBtnText, { color: descriptionColor, marginTop: 0 }]}>Eliminar</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -638,19 +652,25 @@ export default function IotDashboardScreen() {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.profileName, { color: headingColor }]}>{p.nombre_completo}</Text>
-                    <Text style={[styles.profileRole, { color: descriptionColor }]}>
-                      👤 {p.roles?.nombre || "Empleado"}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                      <IconSymbol name="person.fill" size={14} color={descriptionColor} />
+                      <Text style={[styles.profileRole, { color: descriptionColor, marginTop: 0 }]}>
+                        {p.roles?.nombre || "Empleado"}
+                      </Text>
+                    </View>
                   </View>
 
                   {hasCard ? (
                     <View style={styles.rfidLinkedContainer}>
-                      <Text style={[styles.rfidTagText, { color: T.success }]}>💳 {p.rfid_tag}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginRight: 6 }}>
+                        <IconSymbol name="creditcard" size={14} color={T.success} />
+                        <Text style={[styles.rfidTagText, { color: T.success, marginLeft: 0 }]}>{p.rfid_tag}</Text>
+                      </View>
                       <TouchableOpacity
                         style={styles.removeRfidBtn}
                         onPress={() => handleRemoveRfid(p.id, p.nombre_completo)}
                       >
-                        <Text style={{ fontSize: 13 }}>❌</Text>
+                        <IconSymbol name="xmark" size={12} color={T.danger} />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -664,7 +684,10 @@ export default function IotDashboardScreen() {
                         setRfidModalVisible(true);
                       }}
                     >
-                      <Text style={[styles.addRfidBtnText, { color: T.primary }]}>💳 Vincular</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <IconSymbol name="creditcard" size={14} color={T.primary} />
+                        <Text style={[styles.addRfidBtnText, { color: T.primary }]}>Vincular</Text>
+                      </View>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -754,7 +777,7 @@ export default function IotDashboardScreen() {
                         Peso unitario: {item.peso_individual_gramos}g
                       </Text>
                     </View>
-                    <Text style={{ fontSize: 16 }}>➡️</Text>
+                    <IconSymbol name="chevron.right" size={16} color={descriptionColor} />
                   </TouchableOpacity>
                 )}
               />
@@ -782,7 +805,7 @@ export default function IotDashboardScreen() {
             {rfidLinkPhase === 'waiting' && (
               <>
                 <View style={[styles.rfidIconCircle, { backgroundColor: isDark ? '#1A2332' : '#EBF5FF' }]}>
-                  <Text style={{ fontSize: 52 }}>📡</Text>
+                  <IconSymbol name="wifi" size={48} color={isDark ? '#93C5FD' : '#2563EB'} />
                 </View>
                 <Text style={[styles.rfidPhaseTitle, { color: headingColor }]}>
                   Acerque su tarjeta al lector
@@ -822,7 +845,7 @@ export default function IotDashboardScreen() {
             {rfidLinkPhase === 'success' && (
               <>
                 <View style={[styles.rfidIconCircle, { backgroundColor: isDark ? '#14331C' : '#DCFCE7' }]}>
-                  <Text style={{ fontSize: 52 }}>✅</Text>
+                  <IconSymbol name="checkmark.circle" size={48} color={T.success} />
                 </View>
                 <Text style={[styles.rfidPhaseTitle, { color: T.success }]}>
                   ¡Tarjeta vinculada!
@@ -837,7 +860,7 @@ export default function IotDashboardScreen() {
             {rfidLinkPhase === 'timeout' && (
               <>
                 <View style={[styles.rfidIconCircle, { backgroundColor: isDark ? '#3E2A00' : '#FEF3C7' }]}>
-                  <Text style={{ fontSize: 52 }}>⏰</Text>
+                  <IconSymbol name="clock" size={48} color={T.warning} />
                 </View>
                 <Text style={[styles.rfidPhaseTitle, { color: T.warning }]}>
                   Tiempo agotado
@@ -847,11 +870,12 @@ export default function IotDashboardScreen() {
                 </Text>
                 <View style={styles.rfidActionRow}>
                   <TouchableOpacity
-                    style={[styles.rfidRetryBtn, { backgroundColor: T.primaryLight }]}
+                    style={[styles.rfidRetryBtn, { backgroundColor: T.primaryLight, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }]}
                     onPress={() => { setRfidLinkPhase('waiting'); setRfidCountdown(10); }}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.rfidRetryBtnText, { color: T.primary }]}>🔄 Reintentar</Text>
+                    <IconSymbol name="arrow.triangle.2.circlepath" size={14} color={T.primary} />
+                    <Text style={[styles.rfidRetryBtnText, { color: T.primary, marginLeft: 0 }]}>Reintentar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.rfidCancelBtn, { borderColor: separatorColor, flex: 1 }]}
@@ -868,7 +892,7 @@ export default function IotDashboardScreen() {
             {rfidLinkPhase === 'error' && (
               <>
                 <View style={[styles.rfidIconCircle, { backgroundColor: isDark ? '#3E1616' : '#FEE2E2' }]}>
-                  <Text style={{ fontSize: 52 }}>❌</Text>
+                  <IconSymbol name="xmark" size={48} color={T.danger} />
                 </View>
                 <Text style={[styles.rfidPhaseTitle, { color: T.danger }]}>
                   Error al vincular
@@ -878,11 +902,12 @@ export default function IotDashboardScreen() {
                 </Text>
                 <View style={styles.rfidActionRow}>
                   <TouchableOpacity
-                    style={[styles.rfidRetryBtn, { backgroundColor: T.primaryLight }]}
+                    style={[styles.rfidRetryBtn, { backgroundColor: T.primaryLight, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }]}
                     onPress={() => { setRfidLinkPhase('waiting'); setRfidCountdown(10); setRfidTagInput(""); }}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.rfidRetryBtnText, { color: T.primary }]}>🔄 Reintentar</Text>
+                    <IconSymbol name="arrow.triangle.2.circlepath" size={14} color={T.primary} />
+                    <Text style={[styles.rfidRetryBtnText, { color: T.primary, marginLeft: 0 }]}>Reintentar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.rfidCancelBtn, { borderColor: separatorColor, flex: 1 }]}
@@ -924,6 +949,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: T.lg,
     borderRadius: T.radiusMd,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   addButtonText: {
     color: "#FFF",

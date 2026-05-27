@@ -28,6 +28,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { StatChip } from "@/components/ui/StatChip";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { GlobalStyles, T } from "@/constants/theme";
 import {
   checkNetworkConnection,
@@ -132,7 +133,7 @@ const ProductCard = ({
       {/* Fila principal */}
       <View style={styles.cardMainRow}>
         <View style={[styles.cardIconBox, { backgroundColor: cardIconBoxBg }]}>
-          <Text style={styles.cardIcon}>📦</Text>
+          <IconSymbol name="cube.box.fill" size={24} color={textSecondaryColor} />
         </View>
         <View style={styles.cardBody}>
           <Text style={[styles.cardName, { color: textColor }]} numberOfLines={1}>
@@ -147,15 +148,17 @@ const ProductCard = ({
             <TouchableOpacity
               onPress={() => onEdit(item)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 4 }}
             >
-              <Text style={styles.editBtn}>✏️</Text>
+              <IconSymbol name="pencil" size={20} color={textColor} />
             </TouchableOpacity>
           )}
           <TouchableOpacity
             onPress={() => onDelete(item.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ padding: 4 }}
           >
-            <Text style={styles.deleteBtn}>🗑️</Text>
+            <IconSymbol name="trash" size={20} color={isDark ? "#FCA5A5" : T.danger} />
           </TouchableOpacity>
         </View>
       </View>
@@ -174,24 +177,27 @@ const ProductCard = ({
         {/* Badge / Botón de Celda de Carga */}
         {linkedShelf ? (
           <View style={[styles.statusBadge, { backgroundColor: T.primaryLight, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-            <Text style={[styles.statusText, { color: T.primary }]}>
-              {TXT.cellLabel}{linkedShelf.ubicacion_fisica || `MAC ${linkedShelf.mac_address.slice(-5)}`}
+            <IconSymbol name="scale.3d" size={14} color={T.primary} />
+            <Text style={[styles.statusText, { color: T.primary, marginLeft: 0 }]}>
+              Celda: {linkedShelf.ubicacion_fisica || `MAC ${linkedShelf.mac_address.slice(-5)}`}
             </Text>
             <TouchableOpacity 
               onPress={() => onUnlinkShelf && onUnlinkShelf(linkedShelf.estante_id, item.id)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ paddingLeft: 2, justifyContent: 'center', alignItems: 'center' }}
             >
-              <Text style={{ fontSize: 12, color: T.danger, fontWeight: 'bold' }}> ✕</Text>
+              <IconSymbol name="xmark" size={10} color={T.danger} />
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity 
-            style={[styles.statusBadge, { backgroundColor: isDark ? '#2E3033' : T.surfaceAlt, borderWidth: 1, borderColor: isDark ? '#3E4145' : T.border }]}
+            style={[styles.statusBadge, { backgroundColor: isDark ? '#2E3033' : T.surfaceAlt, borderWidth: 1, borderColor: isDark ? '#3E4145' : T.border, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
             onPress={() => onLinkShelf && onLinkShelf(item)}
             activeOpacity={0.8}
           >
+            <IconSymbol name="wifi" size={12} color={textSecondaryColor} />
             <Text style={[styles.statusText, { color: textSecondaryColor }]}>
-              {TXT.linkCell}
+              Vincular Celda
             </Text>
           </TouchableOpacity>
         )}
@@ -230,23 +236,23 @@ const ProductLogCard = ({ item }: { item: ProductLog }) => {
   let badgeLabel = "";
   let badgeColor = "";
   let badgeBg = "";
-  let emoji = "📝";
+  let iconName: any = "paperplane.fill";
 
   if (item.accion === "CREACION") {
     badgeLabel = "CREADO";
     badgeColor = isDark ? "#4ADE80" : T.success;
     badgeBg = isDark ? "rgba(22, 163, 74, 0.15)" : T.successBg;
-    emoji = "🆕";
+    iconName = "plus";
   } else if (item.accion === "MODIFICACION") {
     badgeLabel = "EDITADO";
     badgeColor = isDark ? "#FBBF24" : T.warning;
     badgeBg = isDark ? "rgba(217, 119, 6, 0.15)" : T.warningBg;
-    emoji = "✏️";
+    iconName = "pencil";
   } else if (item.accion === "ELIMINACION") {
     badgeLabel = "ELIMINADO";
     badgeColor = isDark ? "#FCA5A5" : T.danger;
     badgeBg = isDark ? "rgba(220, 38, 38, 0.15)" : T.dangerBg;
-    emoji = "🗑️";
+    iconName = "trash";
   }
 
   const displayUser = item.usuario_nombre
@@ -259,7 +265,7 @@ const ProductLogCard = ({ item }: { item: ProductLog }) => {
     <View style={[styles.logCard, { borderTopColor: borderBottomColor }]}>
       <View style={styles.logCardHeader}>
         <View style={styles.logCardTitleRow}>
-          <Text style={styles.logCardEmoji}>{emoji}</Text>
+          <IconSymbol name={iconName} size={18} color={badgeColor} style={{ marginRight: 8 }} />
           <Text style={[styles.logCardName, { color: textColor }]} numberOfLines={1}>
             {item.producto_nombre}
           </Text>
@@ -279,13 +285,19 @@ const ProductLogCard = ({ item }: { item: ProductLog }) => {
         ) : null}
 
         <View style={styles.logCardFooter}>
-          <Text style={[styles.logCardUser, { color: textMutedColor }]} numberOfLines={1}>
-            👤 {displayUser}
-            <Text style={{ fontWeight: T.weightSemi }}>{displayRole}</Text>
-          </Text>
-          <Text style={[styles.logCardDate, { color: textMutedColor }]}>
-            🕒 {formatLogDate(item.fecha_hora)}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+            <IconSymbol name="person.fill" size={12} color={textMutedColor} />
+            <Text style={[styles.logCardUser, { color: textMutedColor, marginTop: 0 }]} numberOfLines={1}>
+              {displayUser}
+              <Text style={{ fontWeight: T.weightSemi }}>{displayRole}</Text>
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <IconSymbol name="clock" size={12} color={textMutedColor} />
+            <Text style={[styles.logCardDate, { color: textMutedColor, marginTop: 0 }]}>
+              {formatLogDate(item.fecha_hora)}
+            </Text>
+          </View>
         </View>
       </View>
     </View>
@@ -472,12 +484,18 @@ const EditProductModal = ({
                     key={s.estante_id}
                     style={[
                       styles.chip,
-                      selectedShelfId === s.estante_id && styles.chipActive
+                      selectedShelfId === s.estante_id && styles.chipActive,
+                      { flexDirection: "row", alignItems: "center", gap: 4 }
                     ]}
                     onPress={() => setSelectedShelfId(s.estante_id)}
                   >
+                    <IconSymbol 
+                      name="mappin.and.ellipse" 
+                      size={12} 
+                      color={selectedShelfId === s.estante_id ? "#fff" : (isDark ? "#9BA1A6" : T.textSecondary)} 
+                    />
                     <Text style={[styles.chipText, selectedShelfId === s.estante_id && styles.chipTextActive]}>
-                      📍 {s.ubicacion_fisica || `MAC ${s.mac_address.slice(-5)}`}
+                      {s.ubicacion_fisica || `MAC ${s.mac_address.slice(-5)}`}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -660,12 +678,18 @@ const AddProductModal = ({
                     key={s.estante_id}
                     style={[
                       styles.chip,
-                      selectedShelfId === s.estante_id && styles.chipActive
+                      selectedShelfId === s.estante_id && styles.chipActive,
+                      { flexDirection: "row", alignItems: "center", gap: 4 }
                     ]}
                     onPress={() => setSelectedShelfId(s.estante_id)}
                   >
+                    <IconSymbol 
+                      name="mappin.and.ellipse" 
+                      size={12} 
+                      color={selectedShelfId === s.estante_id ? "#fff" : (isDark ? "#9BA1A6" : T.textSecondary)} 
+                    />
                     <Text style={[styles.chipText, selectedShelfId === s.estante_id && styles.chipTextActive]}>
-                      📍 {s.ubicacion_fisica || `MAC ${s.mac_address.slice(-5)}`}
+                      {s.ubicacion_fisica || `MAC ${s.mac_address.slice(-5)}`}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -1244,9 +1268,10 @@ export default function ProductosScreen() {
             </Text>
 
             {shelves.length === 0 ? (
-              <View style={{ width: "100%", alignItems: "center", marginVertical: 20 }}>
+              <View style={{ width: "100%", alignItems: "center", marginVertical: 20, gap: 10 }}>
+                <IconSymbol name="exclamationmark.triangle" size={32} color={T.warning} />
                 <Text style={{ color: descriptionColor, fontSize: 14, textAlign: "center", marginBottom: 15 }}>
-                  {TXT.noShelvesWarningDetail}
+                  No hay celdas de carga (estantes) registradas. Regístrala primero en la pestaña "IoT / Estantes".
                 </Text>
               </View>
             ) : (
@@ -1260,14 +1285,20 @@ export default function ProductosScreen() {
                     onPress={() => handleConfirmLinkShelf(shelf.estante_id)}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.productListName, { color: headingColor }]}>
-                        {TXT.macPrefix}{shelf.mac_address}
-                      </Text>
-                      <Text style={[styles.productListWeight, { color: descriptionColor }]}>
-                        {TXT.locationPrefix}{shelf.ubicacion_fisica || TXT.noLocation}
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <IconSymbol name="wifi" size={14} color={headingColor} />
+                        <Text style={[styles.productListName, { color: headingColor, marginTop: 0 }]}>
+                          MAC: {shelf.mac_address}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <IconSymbol name="mappin.and.ellipse" size={12} color={descriptionColor} />
+                        <Text style={[styles.productListWeight, { color: descriptionColor, marginTop: 0 }]}>
+                          {shelf.ubicacion_fisica || TXT.noLocation}
+                        </Text>
+                      </View>
                     </View>
-                    <Text style={{ fontSize: 16 }}>➡️</Text>
+                    <IconSymbol name="chevron.right" size={18} color={descriptionColor} />
                   </TouchableOpacity>
                 )}
               />

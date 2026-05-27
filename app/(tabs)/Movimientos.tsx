@@ -24,6 +24,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { StatChip } from "@/components/ui/StatChip";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { GlobalStyles, T } from "@/constants/theme";
 import {
   checkNetworkConnection,
@@ -126,10 +127,8 @@ const MovementCard = ({
           <Text style={[styles.cardEstante, { color: textSecondaryColor }]}>{estanteName}</Text>
           <Text style={[styles.cardDate, { color: textMutedColor }]}>{formatDate(item.fecha_hora)}</Text>
         </View>
-        <View style={[styles.badge, { backgroundColor: bg }]}>
-          <Text style={[styles.badgeText, { color }]}>
-            {isEntrada ? "↗" : "↙"}
-          </Text>
+        <View style={[styles.badge, { backgroundColor: bg, width: 28, height: 28, borderRadius: 14, justifyContent: "center", alignItems: "center", paddingHorizontal: 0, paddingVertical: 0 }]}>
+          <IconSymbol name={isEntrada ? "arrow.up.right" : "arrow.down.left"} size={16} color={color} />
         </View>
       </View>
 
@@ -159,8 +158,9 @@ const MovementCard = ({
           <TouchableOpacity
             onPress={() => onDelete(item.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ padding: 4 }}
           >
-            <Text style={styles.deleteBtn}>🗑️</Text>
+            <IconSymbol name="trash" size={18} color={isDark ? "#FCA5A5" : T.danger} />
           </TouchableOpacity>
         </View>
       )}
@@ -354,20 +354,31 @@ const AddMovementModal = ({
                     ]}
                     onPress={() => setForm((p) => ({ ...p, tipo_accion: tipo }))}
                   >
-                    <Text
-                      style={[
-                        styles.toggleText,
-                        { color: isDark ? '#9BA1A6' : T.textMuted },
-                        form.tipo_accion === tipo && {
-                          color:
-                            tipo === "ENTRADA"
-                              ? T.success
-                              : T.danger,
-                        },
-                      ]}
-                    >
-                      {tipo === "ENTRADA" ? "↗ Entrada" : "↙ Salida"}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <IconSymbol
+                        name={tipo === "ENTRADA" ? "arrow.up.right" : "arrow.down.left"}
+                        size={16}
+                        color={
+                          form.tipo_accion === tipo
+                            ? (tipo === "ENTRADA" ? T.success : T.danger)
+                            : (isDark ? '#9BA1A6' : T.textMuted)
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.toggleText,
+                          { color: isDark ? '#9BA1A6' : T.textMuted },
+                          form.tipo_accion === tipo && {
+                            color:
+                              tipo === "ENTRADA"
+                                ? T.success
+                                : T.danger,
+                          },
+                        ]}
+                      >
+                        {tipo === "ENTRADA" ? "Entrada" : "Salida"}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -377,9 +388,10 @@ const AddMovementModal = ({
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: textColor }]}>Producto {form.producto_id ? "" : "*"}</Text>
               {productos.length === 0 ? (
-                <View style={styles.warningBox}>
-                  <Text style={styles.warningText}>
-                    ⚠️ No hay productos registrados. Agrega productos primero en la sección de Productos.
+                <View style={[styles.warningBox, { flexDirection: "row", alignItems: "center", gap: 6 }]}>
+                  <IconSymbol name="exclamationmark.triangle" size={16} color={T.warning} />
+                  <Text style={[styles.warningText, { marginTop: 0, flex: 1 }]}>
+                    No hay productos registrados. Agrega productos primero en la sección de Productos.
                   </Text>
                 </View>
               ) : (
@@ -434,16 +446,32 @@ const AddMovementModal = ({
 
             {/* Alerta de stock disponible */}
             {form.tipo_accion === "SALIDA" && form.producto_id && (
-              <View style={[styles.infoBox, { backgroundColor: isDark ? '#1E293B' : T.infoBg }, stockDisponible !== null && stockDisponible <= 0 ? (isDark ? { backgroundColor: '#3B2314' } : styles.warningInfoBox) : null]}>
-                <Text style={[styles.infoText, { color: isDark ? '#93C5FD' : T.info }, stockDisponible !== null && stockDisponible <= 0 ? (isDark ? { color: '#FCD34D' } : styles.warningInfoText) : null]}>
-                  {loadingStock
-                    ? "Consultando stock..."
-                    : stockDisponible !== null
-                      ? stockDisponible <= 0
-                        ? "⚠️ No hay stock disponible para este producto"
-                        : `📦 Stock disponible: ${stockDisponible} unidades`
-                      : "No se pudo consultar el stock"}
-                </Text>
+              <View style={[
+                styles.infoBox, 
+                { backgroundColor: isDark ? '#1E293B' : T.infoBg, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }, 
+                stockDisponible !== null && stockDisponible <= 0 ? (isDark ? { backgroundColor: '#3B2314' } : styles.warningInfoBox) : null
+              ]}>
+                {loadingStock ? (
+                  <Text style={[styles.infoText, { color: isDark ? '#93C5FD' : T.info }]}>Consultando stock...</Text>
+                ) : stockDisponible !== null ? (
+                  stockDisponible <= 0 ? (
+                    <>
+                      <IconSymbol name="exclamationmark.triangle" size={16} color={isDark ? '#FCD34D' : T.warning} />
+                      <Text style={[styles.infoText, { color: isDark ? '#FCD34D' : T.warning, marginTop: 0 }]}>
+                        No hay stock disponible para este producto
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <IconSymbol name="cube.box.fill" size={16} color={isDark ? '#93C5FD' : T.info} />
+                      <Text style={[styles.infoText, { color: isDark ? '#93C5FD' : T.info, marginTop: 0 }]}>
+                        Stock disponible: {stockDisponible} unidades
+                      </Text>
+                    </>
+                  )
+                ) : (
+                  <Text style={[styles.infoText, { color: isDark ? '#93C5FD' : T.info }]}>No se pudo consultar el stock</Text>
+                )}
               </View>
             )}
 
@@ -825,12 +853,17 @@ export default function MovimientosScreen() {
 
         {/* Estado de sincronización */}
         {(!networkState.isConnected || syncing) && (
-          <View style={styles.syncStatus}>
-            <Text style={styles.syncStatusText}>
+          <View style={[styles.syncStatus, syncing && !(!networkState.isConnected) && { backgroundColor: T.infoBg }, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
+            <IconSymbol 
+              name={!networkState.isConnected ? "exclamationmark.triangle" : "arrow.triangle.2.circlepath"} 
+              size={16} 
+              color={!networkState.isConnected ? T.warning : T.info} 
+            />
+            <Text style={[styles.syncStatusText, syncing && !(!networkState.isConnected) && { color: T.info, marginTop: 0 }]}>
               {!networkState.isConnected
-                ? "📴 Sin conexión - cambios se guardarán localmente"
+                ? "Sin conexión - cambios se guardarán localmente"
                 : syncing
-                  ? "🔄 Sincronizando cambios..."
+                  ? "Sincronizando cambios..."
                   : ""}
             </Text>
           </View>
@@ -1191,6 +1224,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: T.border,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
     backgroundColor: T.surfaceAlt,
   },
   toggleEntrada: {

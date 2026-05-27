@@ -1,19 +1,23 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { T } from '@/constants/theme';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 interface Props {
-  icon?: string;
+  icon?: any;
   message: string;
   hint?: string;
 }
 
-export function EmptyState({ icon = '📭', message, hint }: Props) {
+export function EmptyState({ icon = 'inbox', message, hint }: Props) {
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{icon}</Text>
-      <Text style={styles.message}>{message}</Text>
-      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      <IconSymbol name={icon} size={36} color={isDark ? '#5A6069' : T.textMuted} style={styles.icon} />
+      <Text style={[styles.message, { color: isDark ? '#A1A6AF' : T.textMuted }]}>{message}</Text>
+      {hint ? <Text style={[styles.hint, { color: isDark ? '#7E848C' : T.textMuted }]}>{hint}</Text> : null}
     </View>
   );
 }
@@ -22,20 +26,20 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: T.xxl + T.sm,
     alignItems: 'center',
+    width: '100%',
   },
   icon: {
-    fontSize: 36,
     marginBottom: T.sm,
   },
   message: {
     fontSize: T.fontMd,
-    color: T.textMuted,
     fontWeight: T.weightMedium,
+    textAlign: 'center',
   },
   hint: {
     fontSize: T.fontSm,
-    color: T.textMuted,
     marginTop: T.xs,
     textAlign: 'center',
+    paddingHorizontal: T.lg,
   },
 });
