@@ -176,6 +176,9 @@ export async function deleteProducto(id: string): Promise<boolean> {
     // Obtener datos del producto antes de eliminarlo (para sincronización)
     const producto = await getProductoById(id);
 
+    // Borrar de inventario_actual primero para cascada lógica en SQLite
+    await db.runAsync("DELETE FROM inventario_actual WHERE producto_id = ?", [id]);
+
     await db.runAsync("DELETE FROM productos WHERE id = ?", [id]);
 
     // Registrar en cola de sincronización
@@ -183,10 +186,10 @@ export async function deleteProducto(id: string): Promise<boolean> {
       await addToSyncQueue("productos", "DELETE", id, JSON.stringify(producto));
     }
 
-    console.log(`✅ Producto eliminado localmente: ${id}`);
+    console.log(`✅ Producto y sus vinculaciones de estante eliminados localmente: ${id}`);
     return true;
   } catch (error) {
-    console.error("Error eliminando producto:", error);
+    console.error("Error eliminando producto y sus vinculaciones:", error);
     return false;
   }
 }
@@ -198,8 +201,11 @@ export async function deleteProducto(id: string): Promise<boolean> {
 export async function deleteProductoLocally(id: string): Promise<boolean> {
   try {
     const db = await getDatabase();
+    // Borrar de inventario_actual primero para cascada lógica en SQLite
+    await db.runAsync("DELETE FROM inventario_actual WHERE producto_id = ?", [id]);
+    
     await db.runAsync("DELETE FROM productos WHERE id = ?", [id]);
-    console.log(`✅ Producto eliminado del almacenamiento local: ${id}`);
+    console.log(`✅ Producto y sus vinculaciones eliminados del almacenamiento local: ${id}`);
     return true;
   } catch (error) {
     console.error("Error eliminando producto del almacenamiento local:", error);

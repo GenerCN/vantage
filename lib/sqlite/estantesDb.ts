@@ -43,13 +43,13 @@ export async function getEstantesConInventario(): Promise<EstanteConDetalle[]> {
     const db = await getDatabase();
     const query = `
       SELECT 
-        e.id as estante_id,
-        e.mac_address,
-        e.ubicacion_fisica,
-        e.esta_abierto,
-        e.alerta_activa,
-        e.ultima_conexion,
-        i.id as inventario_id,
+      e.id as estante_id,
+      e.mac_address,
+      e.ubicacion_fisica,
+      e.esta_abierto,
+      e.alerta_activa,
+      e.ultima_conexion,
+      i.id as inventario_id,
         i.producto_id,
         i.peso_total_gramos,
         i.cantidad_calculada,

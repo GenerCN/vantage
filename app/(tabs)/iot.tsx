@@ -42,6 +42,7 @@ interface EstanteDetalle {
   producto_nombre: string | null;
   producto_peso_individual: number | null;
   producto_stock_actual: number | null;
+  ultimo_rfid_escaneado?: string | null;
 }
 
 interface PerfilRFID {
@@ -74,6 +75,7 @@ export default function IotDashboardScreen() {
   // Formularios
   const [macInput, setMacInput] = useState("");
   const [locationInput, setLocationInput] = useState("");
+  const [editingShelfId, setEditingShelfId] = useState<string | null>(null);
   const [selectedShelfId, setSelectedShelfId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<PerfilRFID | null>(null);
   const [rfidTagInput, setRfidTagInput] = useState("");
@@ -126,6 +128,18 @@ export default function IotDashboardScreen() {
 
     return groups;
   }, [profiles, isAdmin]);
+
+  // Filtrar estantes únicos para prevenir advertencias de React por key duplicada
+  const uniqueShelves = useMemo(() => {
+    const seen = new Set();
+    return shelves.filter((s) => {
+      if (!s.estante_id) return true;
+      const key = s.mac_address;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [shelves]);
 
   // Cargar datos principales
   async function loadAllData() {
@@ -180,6 +194,7 @@ export default function IotDashboardScreen() {
       .channel("realtime-iot-inventory")
       .on("postgres_changes", { event: "*", schema: "public", table: "inventario_actual" }, async () => {
         console.log("📡 Telemetría recibida de báscula en tiempo real");
+        await estantesService.downloadEstantesFromSupabase();
         const dataShelves = await estantesService.getEstantes();
         setShelves(dataShelves);
       })
@@ -205,6 +220,7 @@ export default function IotDashboardScreen() {
             setRfidLinkPhase('error');
           }
         }
+        await estantesService.downloadEstantesFromSupabase();
         const dataShelves = await estantesService.getEstantes();
         setShelves(dataShelves);
       })
@@ -317,6 +333,8 @@ export default function IotDashboardScreen() {
       setLoading(false);
     }
   }
+
+
 
   // Vincular producto
   async function handleLinkProduct(productoId: string) {
@@ -532,21 +550,18 @@ export default function IotDashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.divider, { backgroundColor: separatorColor }]} />
-
-        {/* Dashboard de Estantes */}
-        <SectionTitle text="Estantes Inteligentes Activos" />
+            {/* Dashboard de Estantes */}
         {loading && shelves.length === 0 ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={T.primary} />
           </View>
-        ) : shelves.length === 0 ? (
+        ) : uniqueShelves.length === 0 ? (
           <EmptyState
             message="No hay estantes inteligentes registrados"
             hint="Presiona '+ Estante' arriba para dar de alta una celda de carga por dirección MAC."
           />
         ) : (
-          shelves.map((item) => {
+          uniqueShelves.map((item) => {
             const hasProduct = !!item.producto_id;
             const stockActual = item.cantidad_calculada ?? 0;
             const stockMinimo = item.producto_stock_actual ?? 0; // en nuestra app stock_minimo es el stock actual
@@ -590,7 +605,9 @@ export default function IotDashboardScreen() {
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
                       <IconSymbol name="wifi" size={16} color={headingColor} />
-                      <Text style={[styles.macText, { color: headingColor, marginBottom: 0 }]}>MAC: {item.mac_address}</Text>
+                      <Text style={[styles.macText, { color: headingColor, marginBottom: 0 }]}>
+                        MAC: {item.mac_address}
+                      </Text>
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                       <IconSymbol name="mappin.and.ellipse" size={14} color={descriptionColor} />
@@ -912,6 +929,8 @@ export default function IotDashboardScreen() {
           </View>
         </View>
       </Modal>
+
+
 
       {/* ─── MODAL 2: VINCULAR PRODUCTO ─── */}
       <Modal visible={linkProductModalVisible} animationType="fade" transparent>

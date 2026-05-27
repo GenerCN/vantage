@@ -1,3 +1,4 @@
+import { useIsFocused } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -18,7 +19,6 @@ import {
   useColorScheme,
   View
 } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterTabs } from "@/components/ui/FilterTabs";
@@ -56,8 +56,8 @@ const TXT = {
   noShelvesWarning: "⚠️ No hay celdas registradas. Créala en la pestaña \"IoT\".",
   noShelvesWarningDetail: "⚠️ No hay celdas de carga (estantes) registradas. Regístrala primero en la pestaña \"IoT / Estantes\".",
   none: "Ninguno",
-  linkShelfTitle: "Vincular a Celda de Carga",
-  linkShelfDescPre: "Selecciona en qué celda de carga (estante inteligente) deseas colocar el producto \"",
+  linkShelfTitle: "Vincular a Estante",
+  linkShelfDescPre: "Selecciona en qué estante deseas colocar el producto \"",
   linkShelfDescPost: "\".",
   close: "Cerrar",
   linkCell: "📡 Vincular Celda",
@@ -166,7 +166,7 @@ const ProductCard = ({
       {/* Fila de etiquetas (badges) alineada con el texto */}
       <View style={styles.cardTagsRow}>
         <Text style={[styles.categoryTag, { color: textSecondaryColor, backgroundColor: categoryTagBg }]}>
-          Stock mín: {item.stock_minimo}
+          Stock: {item.stock_minimo}
         </Text>
         <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
           <Text style={[styles.statusText, { color: s.color }]}>
@@ -181,7 +181,7 @@ const ProductCard = ({
             <Text style={[styles.statusText, { color: T.primary, marginLeft: 0 }]}>
               Celda: {linkedShelf.ubicacion_fisica || `MAC ${linkedShelf.mac_address.slice(-5)}`}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => onUnlinkShelf && onUnlinkShelf(linkedShelf.estante_id, item.id)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{ paddingLeft: 2, justifyContent: 'center', alignItems: 'center' }}
@@ -190,7 +190,7 @@ const ProductCard = ({
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.statusBadge, { backgroundColor: isDark ? '#2E3033' : T.surfaceAlt, borderWidth: 1, borderColor: isDark ? '#3E4145' : T.border, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
             onPress={() => onLinkShelf && onLinkShelf(item)}
             activeOpacity={0.8}
@@ -226,6 +226,7 @@ const formatLogDate = (dateStr: string) => {
 
 // ─── ProductLogCard ──────────────────────────────────────────────────────────
 const ProductLogCard = ({ item }: { item: ProductLog }) => {
+  const [expanded, setExpanded] = useState(false);
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
   const textColor = isDark ? '#ECEDEE' : T.text;
@@ -259,10 +260,131 @@ const ProductLogCard = ({ item }: { item: ProductLog }) => {
     ? `${item.usuario_nombre}${item.usuario_username ? ` (${item.usuario_username})` : ""}`
     : "Sistema / Anon";
 
-  const displayRole = item.usuario_rol ? ` • ${item.usuario_rol}` : "";
+  // Reemplazar "Stock Mín" por "Stock" en los detalles para mayor brevedad
+  const cleanDetalles = item.detalles
+    ? item.detalles
+      .replace(/Stock Mín:/gi, "Stock:")
+      .replace(/Stock Mín/gi, "Stock")
+      .replace(/stock mín:/gi, "Stock:")
+      .replace(/stock mín/gi, "Stock")
+    : "";
+
+  // Renderizar los detalles de forma visual y estructurada
+  const renderParsedDetails = () => {
+    if (!cleanDetalles) return null;
+
+    // Si no contiene flechas de cambio ➔, renderizamos el texto plano
+    if (!cleanDetalles.includes("➔") && !cleanDetalles.includes("➔") && !cleanDetalles.includes("->")) {
+      return (
+        <Text style={[styles.logCardDetails, { color: textSecondaryColor, marginBottom: 8, lineHeight: 18 }]}>
+          {cleanDetalles}
+        </Text>
+      );
+    }
+
+    // Separar los cambios por punto (ej: "Nombre: A ➔ B. Peso: 1g ➔ 2g.")
+    const parts = cleanDetalles.split(/[\.]+/).map(p => p.trim()).filter(Boolean);
+
+    return (
+      <View style={{ gap: 8, marginVertical: 6 }}>
+        {parts.map((part, index) => {
+          const colonIndex = part.indexOf(":");
+          if (colonIndex === -1) {
+            return (
+              <Text key={index} style={[styles.logCardDetails, { color: textSecondaryColor, fontSize: 13, marginBottom: 2 }]}>
+                {part}
+              </Text>
+            );
+          }
+
+          const field = part.substring(0, colonIndex).trim();
+          const valuesPart = part.substring(colonIndex + 1).trim();
+
+          const arrowMatch = valuesPart.match(/➔|➔|->|➔/);
+          if (!arrowMatch) {
+            return (
+              <Text key={index} style={[styles.logCardDetails, { color: textSecondaryColor, fontSize: 13, marginBottom: 2 }]}>
+                {part}
+              </Text>
+            );
+          }
+
+          const arrow = arrowMatch[0];
+          const arrowIndex = valuesPart.indexOf(arrow);
+          const beforeVal = valuesPart.substring(0, arrowIndex).trim().replace(/^"|"$/g, "");
+          const afterVal = valuesPart.substring(arrowIndex + arrow.length).trim().replace(/^"|"$/g, "");
+
+          // Determinar las etiquetas explícitas legibles en español
+          let beforeLabel = `${field} anterior:`;
+          let afterLabel = `Nuevo ${field.toLowerCase()}:`;
+
+          if (field.toLowerCase() === "stock") {
+            beforeLabel = "Stock anterior:";
+            afterLabel = "Nuevo stock:";
+          } else if (field.toLowerCase() === "peso") {
+            beforeLabel = "Peso anterior:";
+            afterLabel = "Nuevo peso:";
+          } else if (field.toLowerCase() === "nombre") {
+            beforeLabel = "Nombre anterior:";
+            afterLabel = "Nuevo nombre:";
+          }
+
+          return (
+            <View
+              key={index}
+              style={{
+                backgroundColor: isDark ? "#292B2E" : "#EDF2F7",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: isDark ? "#383A3D" : "#E2E8F0",
+                gap: 6
+              }}
+            >
+              {/* Fila del Valor Anterior */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 13, color: textMutedColor, fontWeight: "500" }}>
+                  {beforeLabel}
+                </Text>
+                <Text style={{ color: textSecondaryColor, fontSize: 13, textDecorationLine: "line-through", opacity: 0.8 }}>
+                  {beforeVal}
+                </Text>
+              </View>
+
+              {/* Fila del Valor Nuevo */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: isDark ? "#383A3D" : "#E2E8F0", paddingTop: 6, marginTop: 2 }}>
+                <Text style={{ fontSize: 13, color: isDark ? "#38BDF8" : T.primary, fontWeight: "600" }}>
+                  {afterLabel}
+                </Text>
+                <Text style={{ color: textColor, fontWeight: "700", fontSize: 13 }}>
+                  {afterVal}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
 
   return (
-    <View style={[styles.logCard, { borderTopColor: borderBottomColor }]}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => setExpanded(!expanded)}
+      style={[
+        styles.logCard,
+        {
+          borderTopColor: borderBottomColor,
+          backgroundColor: expanded ? (isDark ? "#1E2022" : "#F8F9FA") : "transparent",
+          paddingHorizontal: expanded ? 12 : 0,
+          paddingVertical: expanded ? 12 : T.md,
+          borderRadius: expanded ? 8 : 0,
+          marginVertical: expanded ? 6 : 0,
+        }
+      ]}
+    >
+      {/* HEADER DE LA CARTA (Siempre visible) */}
       <View style={styles.logCardHeader}>
         <View style={styles.logCardTitleRow}>
           <IconSymbol name={iconName} size={18} color={badgeColor} style={{ marginRight: 8 }} />
@@ -277,30 +399,54 @@ const ProductLogCard = ({ item }: { item: ProductLog }) => {
         </View>
       </View>
 
-      <View style={styles.logCardBody}>
-        {item.detalles ? (
-          <Text style={[styles.logCardDetails, { color: textSecondaryColor }]}>
-            {item.detalles}
+      {/* SUBHEADER: Responsable del cambio y chevron (Siempre visible) */}
+      <View style={[styles.logCardFooter, { marginTop: 0, marginBottom: expanded ? 8 : 0 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+          <IconSymbol name="person.fill" size={12} color={textMutedColor} />
+          <Text style={[styles.logCardUser, { color: textMutedColor, marginTop: 0 }]} numberOfLines={1}>
+            {displayUser}
           </Text>
-        ) : null}
+        </View>
+        <IconSymbol
+          name={expanded ? "chevron.up" : "chevron.down"}
+          size={14}
+          color={textMutedColor}
+        />
+      </View>
 
-        <View style={styles.logCardFooter}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
-            <IconSymbol name="person.fill" size={12} color={textMutedColor} />
-            <Text style={[styles.logCardUser, { color: textMutedColor, marginTop: 0 }]} numberOfLines={1}>
-              {displayUser}
-              <Text style={{ fontWeight: T.weightSemi }}>{displayRole}</Text>
-            </Text>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <IconSymbol name="clock" size={12} color={textMutedColor} />
-            <Text style={[styles.logCardDate, { color: textMutedColor, marginTop: 0 }]}>
-              {formatLogDate(item.fecha_hora)}
-            </Text>
+      {/* DETALLES DESPLEGABLES (Solo visible si está expandido) */}
+      {expanded && (
+        <View style={[
+          styles.logCardBody,
+          {
+            paddingLeft: 0,
+            borderTopWidth: 1,
+            borderTopColor: isDark ? "#2E3033" : "#E2E8F0",
+            paddingTop: 8,
+            marginTop: 4
+          }
+        ]}>
+          {/* Detalles Renderizados en Grid/Tabla */}
+          {renderParsedDetails()}
+
+          {/* Footer del desplegado (Rol y Hora, sin repetir el Nombre) */}
+          <View style={[styles.logCardFooter, { marginTop: 8 }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+              <IconSymbol name="cpu" size={12} color={textMutedColor} />
+              <Text style={[styles.logCardUser, { color: textMutedColor, marginTop: 0 }]} numberOfLines={1}>
+                {item.usuario_rol || "Empleado"}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <IconSymbol name="clock" size={12} color={textMutedColor} />
+              <Text style={[styles.logCardDate, { color: textMutedColor, marginTop: 0 }]}>
+                {formatLogDate(item.fecha_hora)}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
-    </View>
+      )}
+    </TouchableOpacity>
   );
 };
 
@@ -363,6 +509,30 @@ const EditProductModal = ({
       return;
     }
 
+    // Comprobar si el estante seleccionado ya está ocupado por otro producto (y es diferente al original)
+    if (selectedShelfId && selectedShelfId.trim() !== "" && selectedShelfId !== initialShelfId) {
+      const occupiedShelf = shelves.find((s) => s.estante_id === selectedShelfId && !!s.producto_id);
+      if (occupiedShelf) {
+        Alert.alert(
+          "Estante Ocupado",
+          `Este estante ya está vinculado al producto "${occupiedShelf.producto_nombre}". ¿Estás seguro de que deseas desvincularlo de ese producto y vincularlo a "${form.nombre.trim()}"?`,
+          [
+            { text: "Cancelar", style: "cancel" },
+            {
+              text: "Confirmar",
+              style: "destructive",
+              onPress: () => proceedSave()
+            }
+          ]
+        );
+        return;
+      }
+    }
+
+    proceedSave();
+  };
+
+  const proceedSave = async () => {
     setSaving(true);
     try {
       await onSave({
@@ -489,10 +659,10 @@ const EditProductModal = ({
                     ]}
                     onPress={() => setSelectedShelfId(s.estante_id)}
                   >
-                    <IconSymbol 
-                      name="mappin.and.ellipse" 
-                      size={12} 
-                      color={selectedShelfId === s.estante_id ? "#fff" : (isDark ? "#9BA1A6" : T.textSecondary)} 
+                    <IconSymbol
+                      name="mappin.and.ellipse"
+                      size={12}
+                      color={selectedShelfId === s.estante_id ? "#fff" : (isDark ? "#9BA1A6" : T.textSecondary)}
                     />
                     <Text style={[styles.chipText, selectedShelfId === s.estante_id && styles.chipTextActive]}>
                       {s.ubicacion_fisica || `MAC ${s.mac_address.slice(-5)}`}
@@ -554,6 +724,30 @@ const AddProductModal = ({
       return;
     }
 
+    // Comprobar si el estante seleccionado ya está ocupado por otro producto
+    if (selectedShelfId && selectedShelfId.trim() !== "") {
+      const occupiedShelf = shelves.find((s) => s.estante_id === selectedShelfId && !!s.producto_id);
+      if (occupiedShelf) {
+        Alert.alert(
+          "Estante Ocupado",
+          `Este estante ya está vinculado al producto "${occupiedShelf.producto_nombre}". ¿Estás seguro de que deseas desvincularlo de ese producto y vincularlo a tu nuevo producto "${form.nombre.trim()}"?`,
+          [
+            { text: "Cancelar", style: "cancel" },
+            {
+              text: "Confirmar",
+              style: "destructive",
+              onPress: () => proceedAdd()
+            }
+          ]
+        );
+        return;
+      }
+    }
+
+    proceedAdd();
+  };
+
+  const proceedAdd = async () => {
     setSaving(true);
     try {
       await onAdd({
@@ -683,10 +877,10 @@ const AddProductModal = ({
                     ]}
                     onPress={() => setSelectedShelfId(s.estante_id)}
                   >
-                    <IconSymbol 
-                      name="mappin.and.ellipse" 
-                      size={12} 
-                      color={selectedShelfId === s.estante_id ? "#fff" : (isDark ? "#9BA1A6" : T.textSecondary)} 
+                    <IconSymbol
+                      name="mappin.and.ellipse"
+                      size={12}
+                      color={selectedShelfId === s.estante_id ? "#fff" : (isDark ? "#9BA1A6" : T.textSecondary)}
                     />
                     <Text style={[styles.chipText, selectedShelfId === s.estante_id && styles.chipTextActive]}>
                       {s.ubicacion_fisica || `MAC ${s.mac_address.slice(-5)}`}
@@ -756,22 +950,45 @@ export default function ProductosScreen() {
 
   async function handleConfirmLinkShelf(estanteId: string) {
     if (!selectedProductToLink) return;
-    try {
-      setLoading(true);
-      const success = await estantesService.linkProductToShelf(estanteId, selectedProductToLink.id);
-      setLinkShelfModalVisible(false);
-      setSelectedProductToLink(null);
-      await loadProductos();
-      if (success) {
-        Alert.alert("Celda Vinculada", "El producto fue asociado exitosamente al estante.");
-      } else {
-        Alert.alert("Error", "No se pudo vincular la celda.");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+
+    const existingShelf = shelves.find((s) => s.estante_id === estanteId);
+    const hasProduct = existingShelf && !!existingShelf.producto_id;
+    const existingProductName = existingShelf?.producto_nombre || "otro producto";
+
+    const title = hasProduct ? "Estante Ocupado" : "Confirmar Vinculación";
+    const message = hasProduct
+      ? `Este estante ya está vinculado a "${existingProductName}". ¿Estás seguro de que deseas desvincularlo de ese producto y vincularlo a "${selectedProductToLink.nombre}"?`
+      : `¿Seguro que deseas vincular este estante a "${selectedProductToLink.nombre}"?`;
+
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar",
+          style: hasProduct ? "destructive" : "default",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const success = await estantesService.linkProductToShelf(estanteId, selectedProductToLink.id);
+              setLinkShelfModalVisible(false);
+              setSelectedProductToLink(null);
+              await loadProductos();
+              if (success) {
+                Alert.alert("Celda Vinculada", "El producto fue asociado exitosamente al estante.");
+              } else {
+                Alert.alert("Error", "No se pudo vincular la celda.");
+              }
+            } catch (e) {
+              console.error(e);
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
   }
 
   async function handleUnlinkShelfProduct(estanteId: string, productId: string) {
@@ -832,7 +1049,7 @@ export default function ProductosScreen() {
   useEffect(() => {
     loadProductos();
 
-    // Suscribirse a cambios en tiempo real de la tabla productos
+    // Suscribirse a cambios en tiempo real de la tabla productos e historial de cambios
     const channel = supabase
       .channel('productos-channel')
       .on(
@@ -849,8 +1066,57 @@ export default function ProductosScreen() {
           handleRealtimeChange(payload);
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT', // Interceptar nuevas filas de logs creadas automáticamente por los triggers
+          schema: 'public',
+          table: 'historial_cambios_productos',
+        },
+        (payload) => {
+          console.log('🔄 Nuevo log de auditoría detectado en Realtime:', payload);
+          // Recargar el historial automáticamente para evitar pull-to-refresh
+          loadProductLogs();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inventario_actual',
+        },
+        async (payload) => {
+          console.log('🔄 Cambio detectado en inventario_actual (Realtime):', payload);
+          try {
+            await estantesService.downloadEstantesFromSupabase();
+            const dataShelves = await estantesService.getEstantes();
+            setShelves(dataShelves);
+          } catch (e) {
+            console.error('Error sincronizando inventario_actual en tiempo real:', e);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'estantes',
+        },
+        async (payload) => {
+          console.log('🔄 Cambio detectado en estantes (Realtime):', payload);
+          try {
+            await estantesService.downloadEstantesFromSupabase();
+            const dataShelves = await estantesService.getEstantes();
+            setShelves(dataShelves);
+          } catch (e) {
+            console.error('Error sincronizando estantes en tiempo real:', e);
+          }
+        }
+      )
       .subscribe((status) => {
-        console.log('📡 Estado de suscripción Realtime:', status);
+        console.log('📡 Estado de suscripción Realtime (Productos + Historial + Estantes):', status);
       });
 
     // Limpiar suscripción al desmontar el componente
@@ -942,7 +1208,10 @@ export default function ProductosScreen() {
         ...prev,
         total: Math.max(0, prev.total - 1),
       }));
-      console.log(`✅ Producto ${deletedId} eliminado de SQLite y estado`);
+      // Recargar los estantes/básculas desde SQLite local
+      const dataShelves = await estantesService.getEstantes();
+      setShelves(dataShelves);
+      console.log(`✅ Producto ${deletedId} y sus estantes vinculados eliminados de SQLite y estado`);
     } else {
       // Para INSERT/UPDATE: descargar desde Supabase
       await loadProductosFromSupabase();
@@ -1093,6 +1362,9 @@ export default function ProductosScreen() {
           ...prev,
           total: Math.max(0, prev.total - 1),
         }));
+        // Recargar los estantes/básculas desde SQLite local
+        const dataShelves = await estantesService.getEstantes();
+        setShelves(dataShelves);
       }
     } catch (error) {
       console.error("Error eliminando producto:", error);
@@ -1292,9 +1564,9 @@ export default function ProductosScreen() {
                         </Text>
                       </View>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                        <IconSymbol name="mappin.and.ellipse" size={12} color={descriptionColor} />
-                        <Text style={[styles.productListWeight, { color: descriptionColor, marginTop: 0 }]}>
-                          {shelf.ubicacion_fisica || TXT.noLocation}
+                        <IconSymbol name="mappin.and.ellipse" size={12} color={shelf.ubicacion_fisica ? descriptionColor : T.warning} />
+                        <Text style={[styles.productListWeight, { color: shelf.ubicacion_fisica ? descriptionColor : T.warning, marginTop: 0, fontWeight: shelf.ubicacion_fisica ? "normal" : "bold" }]}>
+                          {shelf.ubicacion_fisica || "Por configurar / Descubierta"}
                         </Text>
                       </View>
                     </View>

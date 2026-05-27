@@ -61,3 +61,6 @@ Documentacion_Completa_Vantage.docx
 
 # Arduino
 *.ino
+
+# txt
+*.txt

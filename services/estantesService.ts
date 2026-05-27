@@ -66,7 +66,7 @@ export const estantesService = {
           ]);
 
         if (error) {
-          console.error("Error registrando estante en Supabase:", error);
+          console.log("⚠️ [Supabase error ignored for LogBox] Error registrando estante en Supabase:", error);
           // Si hay error en Supabase por UNIQUE constraint (MAC duplicada), lanzar error
           if ((error as any).code === "23505") {
             throw new Error(`La dirección MAC "${newEstante.mac_address}" ya está registrada.`);
@@ -77,7 +77,7 @@ export const estantesService = {
       console.log(`✅ Estante registrado exitosamente: ${newEstante.mac_address}`);
       return newEstante;
     } catch (error) {
-      console.error("Error en registerEstante:", error);
+      console.log("⚠️ [LogBox-safe] Error en registerEstante:", error);
       throw error;
     }
   },
@@ -106,30 +106,36 @@ export const estantesService = {
 
       // 2. Sincronizar en la nube
       if (isConnected && supabase) {
-        // Usar upsert para evitar conflictos si ya existía una relación
+        // Enforce 1-to-1 relationship: Delete any existing product links for this specific shelf first
+        await supabase
+          .from("inventario_actual")
+          .delete()
+          .eq("estante_id", estanteId);
+
+        // Insert the fresh unique association
         const { error } = await supabase
           .from("inventario_actual")
-          .upsert(
-            {
-              estante_id: estanteId,
-              producto_id: productoId,
-              peso_total_gramos: 0.0,
-              cantidad_calculada: 0,
-              ultima_actualizacion: new Date().toISOString(),
-            },
-            { onConflict: "estante_id, producto_id" }
-          );
+          .insert({
+            estante_id: estanteId,
+            producto_id: productoId,
+            peso_total_gramos: 0.0,
+            cantidad_calculada: 0,
+            ultima_actualizacion: new Date().toISOString(),
+          });
 
         if (error) {
-          console.error("Error vinculando producto a estante en Supabase:", error);
+          console.log("⚠️ [LogBox-safe] Error vinculando producto a estante en Supabase:", error);
           return false;
         }
       }
 
-      console.log(`✅ Producto ${productoId} vinculado a Estante ${estanteId}`);
+      // 3. Forzar redescarga para alinear el estado SQLite local inmediatamente
+      await this.downloadEstantesFromSupabase();
+
+      console.log(`✅ Producto ${productoId} vinculado a Estante ${estanteId} (se eliminó cualquier vínculo previo)`);
       return true;
     } catch (error) {
-      console.error("Error en linkProductToShelf:", error);
+      console.log("⚠️ [LogBox-safe] Error en linkProductToShelf:", error);
       return false;
     }
   },
@@ -153,7 +159,7 @@ export const estantesService = {
           .eq("producto_id", productoId);
 
         if (error) {
-          console.error("Error desvinculando de Supabase:", error);
+          console.log("⚠️ [LogBox-safe] Error desvinculando de Supabase:", error);
           return false;
         }
       }
@@ -161,7 +167,7 @@ export const estantesService = {
       await this.downloadEstantesFromSupabase();
       return true;
     } catch (error) {
-      console.error("Error en unlinkProductFromShelf:", error);
+      console.log("⚠️ [LogBox-safe] Error en unlinkProductFromShelf:", error);
       return false;
     }
   },
@@ -184,14 +190,14 @@ export const estantesService = {
           .eq("id", id);
 
         if (error) {
-          console.error("Error actualizando ubicación en Supabase:", error);
+          console.log("⚠️ [LogBox-safe] Error actualizando ubicación en Supabase:", error);
           return false;
         }
       }
 
       return true;
     } catch (error) {
-      console.error("Error en updateUbicacion:", error);
+      console.log("⚠️ [LogBox-safe] Error en updateUbicacion:", error);
       return false;
     }
   },
@@ -214,14 +220,14 @@ export const estantesService = {
           .eq("id", id);
 
         if (error) {
-          console.error("Error eliminando estante en Supabase:", error);
+          console.log("⚠️ [LogBox-safe] Error eliminando estante en Supabase:", error);
           return false;
         }
       }
 
       return true;
     } catch (error) {
-      console.error("Error en deleteEstante:", error);
+      console.log("⚠️ [LogBox-safe] Error en deleteEstante:", error);
       return false;
     }
   },
@@ -242,7 +248,7 @@ export const estantesService = {
         .select("*");
 
       if (estantesError) {
-        console.error("Error descargando estantes:", estantesError);
+        console.log("⚠️ [LogBox-safe] Error descargando estantes:", estantesError);
         return false;
       }
 
@@ -252,7 +258,7 @@ export const estantesService = {
         .select("*");
 
       if (invError) {
-        console.error("Error descargando inventario_actual:", invError);
+        console.log("⚠️ [LogBox-safe] Error descargando inventario_actual:", invError);
         return false;
       }
 
@@ -274,6 +280,11 @@ export const estantesService = {
 
       // Insertar inventarios en SQLite
       for (const i of (invData || [])) {
+        // Ignorar si el producto_id es nulo o vacío para evitar el crash de NOT NULL constraint en SQLite
+        if (!i.producto_id) {
+          console.warn(`⚠️ Saltando inventario_actual id ${i.id} porque producto_id es nulo o vacío.`);
+          continue;
+        }
         const inv: InventarioActual = {
           id: i.id,
           estante_id: i.estante_id,
@@ -288,7 +299,7 @@ export const estantesService = {
       console.log(`☁️  Sincronizados ${estantesData?.length} estantes y ${invData?.length} inventarios desde Supabase.`);
       return true;
     } catch (error) {
-      console.error("Error en downloadEstantesFromSupabase:", error);
+      console.log("⚠️ [LogBox-safe] Error en downloadEstantesFromSupabase:", error);
       return false;
     }
   }

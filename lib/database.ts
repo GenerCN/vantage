@@ -17,6 +17,19 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
 async function initializeTables(database: SQLite.SQLiteDatabase) {
   try {
+    // Verificar si la tabla estantes tiene la columna canal_id, si es así, recrearla para volver al esquema simple
+    try {
+      const checkCol = await database.getAllAsync<{name: string}>("PRAGMA table_info(estantes);");
+      const hasCanalId = checkCol && checkCol.some(c => c.name === 'canal_id');
+      if (checkCol && checkCol.length > 0 && hasCanalId) {
+        console.log("⚙️ Revirtiendo tabla estantes en SQLite al esquema simple (sin canal_id)...");
+        await database.execAsync("DROP TABLE IF EXISTS inventario_actual;");
+        await database.execAsync("DROP TABLE IF EXISTS estantes;");
+      }
+    } catch (e) {
+      console.log("No existía la tabla estantes para migrar, se creará ahora.");
+    }
+
     // Verificar si la tabla productos tiene el schema antiguo y migrar si es necesario
     await migrateProductosTable(database);
 
@@ -32,7 +45,7 @@ async function initializeTables(database: SQLite.SQLiteDatabase) {
       );
     `);
 
-    // Crear tabla de estantes (relación producto-estante)
+    // Crear tabla de estantes (relación producto-estante) con esquema simple por MAC
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS estantes (
         id TEXT PRIMARY KEY,

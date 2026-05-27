@@ -48,6 +48,8 @@ const MAPPING = {
   "arrow.down.left": "call-received",
   "arrow.triangle.2.circlepath": "sync",
   "plus": "add",
+  "chevron.down": "keyboard-arrow-down",
+  "chevron.up": "keyboard-arrow-up",
 } as IconMapping;
 
 /**
