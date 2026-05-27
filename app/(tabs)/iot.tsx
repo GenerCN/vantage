@@ -1,5 +1,5 @@
 import { useIsFocused } from "@react-navigation/native";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -48,7 +48,9 @@ interface PerfilRFID {
   id: string;
   nombre_completo: string;
   rfid_tag: string | null;
+  role_id: number;
   roles?: { nombre: string } | null;
+  username?: string | null;
 }
 
 export default function IotDashboardScreen() {
@@ -60,6 +62,7 @@ export default function IotDashboardScreen() {
   const [shelves, setShelves] = useState<EstanteDetalle[]>([]);
   const [products, setProducts] = useState<Producto[]>([]);
   const [profiles, setProfiles] = useState<PerfilRFID[]>([]);
+  const [currentUser, setCurrentUser] = useState<PerfilRFID | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -84,6 +87,46 @@ export default function IotDashboardScreen() {
   const rfidModalVisibleRef = useRef(false);
   const selectedProfileRef = useRef<PerfilRFID | null>(null);
 
+  const isAdmin =
+    currentUser?.roles?.nombre === "Administrador TI" ||
+    currentUser?.roles?.nombre === "Administrador" ||
+    currentUser?.role_id === 1;
+  const currentUserRoleId = currentUser?.role_id || 4;
+
+  const displayedProfiles = useMemo(() => {
+    if (isAdmin) return profiles;
+    return profiles.filter(p => p.role_id === currentUserRoleId || p.id === currentUser?.id);
+  }, [profiles, currentUser, isAdmin, currentUserRoleId]);
+
+  const groupedProfiles = useMemo(() => {
+    if (!isAdmin) return null;
+    const groups: Record<string, PerfilRFID[]> = {
+      "Administrador TI": [],
+      "Desarrollador": [],
+      "Tester": [],
+      "Empleado": []
+    };
+
+    profiles.forEach(p => {
+      const roleName = p.roles?.nombre || "Empleado";
+      let mappedRole = roleName;
+      if (roleName === "Administrador") {
+        mappedRole = "Administrador TI";
+      } else if (roleName === "Supervisor") {
+        mappedRole = "Desarrollador";
+      } else if (roleName === "Operador") {
+        mappedRole = "Tester";
+      }
+
+      if (!groups[mappedRole]) {
+        groups[mappedRole] = [];
+      }
+      groups[mappedRole].push(p);
+    });
+
+    return groups;
+  }, [profiles, isAdmin]);
+
   // Cargar datos principales
   async function loadAllData() {
     try {
@@ -98,8 +141,20 @@ export default function IotDashboardScreen() {
       const dataProducts = await getProductos();
       setProducts(dataProducts);
 
-      // 4. Cargar perfiles de Supabase para RFID
+      // 4. Cargar perfiles y usuario logueado de Supabase para RFID
       if (supabase) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: currentProfile } = await supabase
+            .from("perfiles")
+            .select("*, roles(nombre)")
+            .eq("id", user.id)
+            .single();
+          if (currentProfile) {
+            setCurrentUser(currentProfile);
+          }
+        }
+
         const { data: dataProfiles } = await supabase
           .from("perfiles")
           .select("*, roles(nombre)");
@@ -108,7 +163,7 @@ export default function IotDashboardScreen() {
         }
       }
     } catch (error) {
-      console.error("Error cargando datos IoT:", error);
+      console.log("Error cargando datos IoT:", error);
     } finally {
       setLoading(false);
     }
@@ -159,6 +214,18 @@ export default function IotDashboardScreen() {
     const channelProfiles = supabase
       .channel("realtime-iot-profiles")
       .on("postgres_changes", { event: "*", schema: "public", table: "perfiles" }, async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: currentProfile } = await supabase
+            .from("perfiles")
+            .select("*, roles(nombre)")
+            .eq("id", user.id)
+            .single();
+          if (currentProfile) {
+            setCurrentUser(currentProfile);
+          }
+        }
+
         const { data: dataProfiles } = await supabase
           .from("perfiles")
           .select("*, roles(nombre)");
@@ -351,13 +418,13 @@ export default function IotDashboardScreen() {
           .select();
 
         if (error) {
-          console.error("❌ Error vinculando RFID en Supabase:", error);
+          console.log("❌ Error vinculando RFID en Supabase:", error);
           setRfidLinkPhase('error');
           return;
         }
 
         if (!data || data.length === 0) {
-          console.error("❌ Error RLS: No se pudo actualizar el perfil. Comprueba las políticas RLS en Supabase.");
+          console.log("❌ Error RLS: No se pudo actualizar el perfil. Comprueba las políticas RLS en Supabase.");
           setRfidLinkPhase('error');
           return;
         }
@@ -372,7 +439,7 @@ export default function IotDashboardScreen() {
         }, 2000);
       }
     } catch (error) {
-      console.error("❌ Excepción al vincular RFID:", error);
+      console.log("❌ Excepción al vincular RFID:", error);
       setRfidLinkPhase('error');
     }
   }
@@ -410,7 +477,7 @@ export default function IotDashboardScreen() {
                 await loadAllData();
               }
             } catch (error) {
-              console.error(error);
+              console.log(error);
             } finally {
               setLoading(false);
             }
@@ -631,70 +698,167 @@ export default function IotDashboardScreen() {
         <View style={{ height: T.xl }} />
 
         {/* Sección RFID Personal */}
-        <SectionTitle text="Control de Acceso RFID (Empleados)" />
+        <SectionTitle text="Control de Acceso RFID" />
 
-        <SectionCard noPadding style={{ borderWidth: isDark ? 1 : 0, borderColor: separatorColor }}>
-          {profiles.length === 0 ? (
-            <EmptyState message="Cargando empleados..." />
-          ) : (
-            profiles.map((p, index) => {
-              const hasCard = !!p.rfid_tag;
+        <View style={{ gap: T.md }}>
+          {loading || !currentUser ? (
+            <SectionCard>
+              <ActivityIndicator size="small" color={T.primary} />
+            </SectionCard>
+          ) : profiles.length === 0 ? (
+            <SectionCard noPadding style={{ borderWidth: isDark ? 1 : 0, borderColor: separatorColor }}>
+              <EmptyState message="Cargando empleados..." />
+            </SectionCard>
+          ) : isAdmin ? (
+            // Vista agrupada para el Administrador (Ordenada exactamente como register.tsx)
+            (["Administrador TI", "Desarrollador", "Tester", "Empleado"] as const).map((roleName) => {
+              const list = groupedProfiles?.[roleName] || [];
+              if (list.length === 0) return null;
+
+              // Obtener color por rol
+              let roleColor = T.primary;
+              let roleLabel: string = roleName;
+
+              if (roleName === "Administrador TI") {
+                roleColor = "#D97706"; // Amber
+                roleLabel = "Administradores TI";
+              } else if (roleName === "Desarrollador") {
+                roleColor = "#2563EB"; // Blue
+                roleLabel = "Desarrolladores";
+              } else if (roleName === "Tester") {
+                roleColor = "#059669"; // Green
+                roleLabel = "Testers";
+              } else if (roleName === "Empleado") {
+                roleColor = "#6B7280"; // Gray
+                roleLabel = "Empleados";
+              }
+
               return (
-                <View
-                  key={p.id}
-                  style={[
-                    styles.profileRow,
-                    {
-                      borderTopWidth: index === 0 ? 0 : 1,
-                      borderTopColor: separatorColor,
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.profileName, { color: headingColor }]}>{p.nombre_completo}</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                      <IconSymbol name="person.fill" size={14} color={descriptionColor} />
-                      <Text style={[styles.profileRole, { color: descriptionColor, marginTop: 0 }]}>
-                        {p.roles?.nombre || "Empleado"}
-                      </Text>
-                    </View>
+                <View key={roleName} style={{ marginBottom: T.sm }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, paddingHorizontal: T.sm }}>
+                    <Text style={{ fontSize: T.fontSm, fontWeight: T.weightBold, color: roleColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      {roleLabel} ({list.length})
+                    </Text>
                   </View>
+                  <SectionCard noPadding style={{ borderWidth: isDark ? 1 : 0, borderColor: separatorColor }}>
+                    {list.map((p, index) => {
+                      const hasCard = !!p.rfid_tag;
+                      return (
+                        <View
+                          key={p.id}
+                          style={[
+                            styles.profileRow,
+                            {
+                              borderTopWidth: index === 0 ? 0 : 1,
+                              borderTopColor: separatorColor,
+                            },
+                          ]}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.profileName, { color: headingColor }]}>{p.nombre_completo}</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                              <IconSymbol name="person.fill" size={14} color={descriptionColor} />
+                              <Text style={[styles.profileRole, { color: descriptionColor, marginTop: 0 }]}>
+                                {p.username ? `@${p.username}` : (p.roles?.nombre || "Empleado")}
+                              </Text>
+                            </View>
+                          </View>
 
-                  {hasCard ? (
-                    <View style={styles.rfidLinkedContainer}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginRight: 6 }}>
-                        <IconSymbol name="creditcard" size={14} color={T.success} />
-                        <Text style={[styles.rfidTagText, { color: T.success, marginLeft: 0 }]}>{p.rfid_tag}</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.removeRfidBtn}
-                        onPress={() => handleRemoveRfid(p.id, p.nombre_completo)}
-                      >
-                        <IconSymbol name="xmark" size={12} color={T.danger} />
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={[styles.addRfidBtn, { backgroundColor: T.primaryLight }]}
-                      onPress={() => {
-                        setSelectedProfile(p);
-                        setRfidTagInput("");
-                        setRfidLinkPhase('waiting');
-                        setRfidCountdown(10);
-                        setRfidModalVisible(true);
-                      }}
-                    >
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                        <IconSymbol name="creditcard" size={14} color={T.primary} />
-                        <Text style={[styles.addRfidBtnText, { color: T.primary }]}>Vincular</Text>
-                      </View>
-                    </TouchableOpacity>
-                  )}
+                          {hasCard ? (
+                            <View style={styles.rfidLinkedContainer}>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginRight: 6 }}>
+                                <IconSymbol name="creditcard" size={14} color={T.success} />
+                                <Text style={[styles.rfidTagText, { color: T.success, marginLeft: 0 }]}>{p.rfid_tag}</Text>
+                              </View>
+                              <TouchableOpacity
+                                style={styles.removeRfidBtn}
+                                onPress={() => handleRemoveRfid(p.id, p.nombre_completo)}
+                              >
+                                <IconSymbol name="xmark" size={12} color={T.danger} />
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <TouchableOpacity
+                              style={[styles.addRfidBtn, { backgroundColor: T.primaryLight }]}
+                              onPress={() => {
+                                setSelectedProfile(p);
+                                setRfidTagInput("");
+                                setRfidLinkPhase('waiting');
+                                setRfidCountdown(10);
+                                setRfidModalVisible(true);
+                              }}
+                            >
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                                <IconSymbol name="creditcard" size={14} color={T.primary} />
+                                <Text style={[styles.addRfidBtnText, { color: T.primary }]}>Vincular</Text>
+                              </View>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </SectionCard>
                 </View>
               );
             })
+          ) : (
+            // Vista plana y enmascarada para empleados regulares (Operador, Empleado, etc.)
+            <SectionCard noPadding style={{ borderWidth: isDark ? 1 : 0, borderColor: separatorColor }}>
+              {displayedProfiles.map((p, index) => {
+                const isSelf = p.id === currentUser.id;
+                const hasCard = !!p.rfid_tag;
+
+                return (
+                  <View
+                    key={p.id}
+                    style={[
+                      styles.profileRow,
+                      {
+                        borderTopWidth: index === 0 ? 0 : 1,
+                        borderTopColor: separatorColor,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={[styles.profileName, { color: headingColor }]}>
+                          {p.nombre_completo}
+                        </Text>
+                        {isSelf && (
+                          <View style={{ backgroundColor: isDark ? '#1E3A5F' : '#DBEAFE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 10, color: isDark ? '#93C5FD' : '#2563EB', fontWeight: 'bold' }}>Tú</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                        <IconSymbol name="person.fill" size={14} color={descriptionColor} />
+                        <Text style={[styles.profileRole, { color: descriptionColor, marginTop: 0 }]}>
+                          {p.roles?.nombre || "Empleado"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {hasCard ? (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: isDark ? '#14331C' : '#E8F5E9' }}>
+                        <IconSymbol name="creditcard" size={14} color={T.success} />
+                        <Text style={[styles.rfidTagText, { color: T.success, marginLeft: 0, fontWeight: T.weightSemi }]}>
+                          {isSelf ? p.rfid_tag : "Tarj. Activa"}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: isDark ? '#2E3033' : '#F5F5F5' }}>
+                        <IconSymbol name="creditcard" size={14} color={isDark ? '#7E848C' : '#9E9E9E'} />
+                        <Text style={{ fontSize: T.fontSm, color: isDark ? '#7E848C' : '#9E9E9E', fontWeight: T.weightMedium }}>
+                          Sin tarjeta
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </SectionCard>
           )}
-        </SectionCard>
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
