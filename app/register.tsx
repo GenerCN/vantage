@@ -1,17 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, useColorScheme, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, useColorScheme, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Importamos los estilos desde la carpeta independiente
-import { perfilService } from "../services/perfilService";
 import { authService } from "../services/authService";
+import { perfilService } from "../services/perfilService";
 import type { Rol } from "../services/rolesService";
 import { styles } from "../styles/StyleRegister";
+import { translateAuthError } from "../lib/errorHelper";
 
-export default function RegisterScreen() {
+export default function RegisterScreen({ onBack }: { onBack?: () => void }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
   const [loadingRoles, setLoadingRoles] = useState(true);
   const [showRoleModal, setShowRoleModal] = useState(false);
 
@@ -88,7 +92,7 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const nombreCompleto = `${firstName} ${middleName} ${firstLastName} ${secondLastName}`.replace(/\s+/g, ' ').trim();
-      
+
       // 1. Registrar en Supabase Auth pasando el rol seleccionado
       const { data, error } = await authService.signUp(
         username,
@@ -123,8 +127,9 @@ export default function RegisterScreen() {
         });
       }
     } catch (error: any) {
-      Alert.alert("Error en el registro", error.message || "No se pudo crear la cuenta.");
-      console.error(error);
+      const translatedMsg = translateAuthError(error);
+      Alert.alert("Error en el registro", translatedMsg);
+      console.warn("[Vantage Register Error Captured]:", error?.message || error);
     } finally {
       setLoading(false);
     }
@@ -139,20 +144,59 @@ export default function RegisterScreen() {
     );
   }
 
+  const topPadding = Platform.OS === "android"
+    ? (StatusBar.currentHeight || 24) + 16
+    : Math.max(insets.top, 44);
+
   return (
-    <View style={{ flex: 1, backgroundColor: containerBg }}>
+    <View style={{ flex: 1, backgroundColor: containerBg, paddingTop: topPadding }}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={containerBg} />
-      <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: containerBg }]}>
+      <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: containerBg, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 20) }]}>
         {/* Botón de Regreso dentro del ScrollView */}
         <View style={{ marginBottom: 16 }}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              if (onBack) {
+                onBack();
+              } else if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/");
+              }
+            }}
             disabled={loading}
             style={{ flexDirection: 'row', alignItems: 'center' }}
           >
             <Ionicons name="arrow-back" size={24} color={arrowColor} />
             <Text style={{ fontSize: 16, color: arrowColor, marginLeft: 8 }}>Regresar</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Vantage Logo Premium Header (Register Page) */}
+        <View style={{
+          alignSelf: 'center',
+          padding: 8,
+          borderRadius: 24,
+          backgroundColor: isDark ? 'rgba(46, 48, 51, 0.4)' : 'rgba(255, 255, 255, 0.9)',
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: isDark ? 0.25 : 0.06,
+          shadowRadius: 8,
+          elevation: 4,
+          marginBottom: 20,
+          marginTop: 10,
+        }}>
+          <Image
+            source={require("../assets/images/vantage.png")}
+            style={{
+              width: 90,
+              height: 90,
+              borderRadius: 16,
+            }}
+            contentFit="contain"
+          />
         </View>
 
         <Text style={[styles.title, { color: titleColor }]}>Crear una Cuenta</Text>
