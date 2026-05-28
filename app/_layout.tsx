@@ -90,27 +90,27 @@ export default function RootLayout() {
   }, [session, segments, initialized]);
 
   if (!initialized) {
+    const loaderBg = colorScheme === 'dark' ? "#151718" : "#ffffff";
+    const spinnerColor = colorScheme === 'dark' ? "#14B8A6" : "#007AFF";
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: loaderBg }}>
+        <ActivityIndicator size="large" color={spinnerColor} />
       </View>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomLightTheme}>
+      <ThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : CustomLightTheme}>
         <Stack screenOptions={{ 
-          contentStyle: { backgroundColor: colorScheme === "dark" ? "#151718" : "#ffffff" }
+          headerShown: false, 
+          contentStyle: { backgroundColor: colorScheme === 'dark' ? '#151718' : '#ffffff' } 
         }}>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="register" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="register-success"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="index" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name="register-success" />
+          <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="modal"
             options={{ presentation: "modal", title: "Modal" }}

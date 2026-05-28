@@ -7,11 +7,13 @@
     "icon": "./assets/images/icon.png",
     "scheme": "vantage",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#151718",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "backgroundColor": "#151718",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

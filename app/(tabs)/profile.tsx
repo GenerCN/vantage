@@ -289,14 +289,13 @@ export default function ProfileScreen() {
           try {
             await resetDatabase(); // Limpiar base de datos local SQLite al salir
           } catch (dbError) {
-            console.error("Error al reiniciar base de datos local:", dbError);
+            console.log("⚠️ [LogBox-safe] Error al reiniciar base de datos local:", dbError);
           }
           const { error } = await authService.signOut();
           if (error) {
             Alert.alert("Error", "No se pudo cerrar la sesión.");
-          } else {
-            router.replace("/login");
           }
+          // El redireccionamiento es manejado automáticamente por _layout.tsx
         },
       },
     ]);
