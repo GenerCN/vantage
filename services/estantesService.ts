@@ -1,6 +1,7 @@
 import { checkNetworkConnection } from "@/hooks/useNetworkState";
 import {
   clearEstantesLocales,
+  clearInventarioByEstante,
   deleteEstanteLocal,
   getEstantesConInventario,
   insertOrReplaceEstante,
@@ -104,7 +105,8 @@ export const estantesService = {
         ultima_actualizacion: new Date().toISOString(),
       };
 
-      // 1. Guardar localmente
+      // 1. Guardar localmente (Limpiando primero cualquier vínculo previo en SQLite)
+      await clearInventarioByEstante(estanteId);
       await insertOrReplaceInventario(newInventario);
 
       // 2. Sincronizar en la nube
@@ -150,8 +152,8 @@ export const estantesService = {
     try {
       const isConnected = await checkNetworkConnection();
 
-      // 1. Eliminar localmente en SQLite es manejado al descargar, pero podemos hacer delete directo
-      // Para simplificar localmente, eliminaremos el estante de SQLite y forzaremos redescarga
+      // 1. Eliminar localmente en SQLite de forma directa e inmediata
+      await clearInventarioByEstante(estanteId);
       
       // 2. Si hay red, eliminar de Supabase
       if (isConnected && supabase) {

@@ -154,6 +154,20 @@ export async function deleteEstanteLocal(id: string): Promise<boolean> {
 }
 
 /**
+ * Elimina cualquier registro en inventario_actual para un estante específico en SQLite
+ */
+export async function clearInventarioByEstante(estanteId: string): Promise<boolean> {
+  try {
+    const db = await getDatabase();
+    await db.runAsync("DELETE FROM inventario_actual WHERE estante_id = ?", [estanteId]);
+    return true;
+  } catch (error) {
+    console.log("⚠️ [LogBox-safe] Error en SQLite clearInventarioByEstante:", error);
+    return false;
+  }
+}
+
+/**
  * Limpia la tabla local de estantes (para resincronización limpia)
  */
 export async function clearEstantesLocales(): Promise<void> {

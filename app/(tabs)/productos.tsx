@@ -1549,7 +1549,7 @@ export default function ProductosScreen() {
             ) : (
               <FlatList
                 data={shelves}
-                keyExtractor={(s) => s.estante_id}
+                keyExtractor={(s) => `${s.estante_id}-${s.producto_id || "unlinked"}`}
                 style={{ width: "100%", marginVertical: T.md, maxHeight: 250 }}
                 renderItem={({ item: shelf }) => (
                   <TouchableOpacity
