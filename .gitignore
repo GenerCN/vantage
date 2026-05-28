@@ -34,7 +34,6 @@ yarn-error.*
 Thumbs.db
 
 # pnpm
-pnpm-lock.yaml
 .npmrc
 
 # generated native folders

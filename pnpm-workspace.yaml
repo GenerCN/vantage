@@ -1,5 +1,6 @@
 allowBuilds:
   '@firebase/util': false
+  dtrace-provider: false
   ngrok: true
   protobufjs: false
   unrs-resolver: true
