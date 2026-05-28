@@ -5,6 +5,7 @@ import {
   getEstantesConInventario,
   insertOrReplaceEstante,
   insertOrReplaceInventario,
+  syncEstantesAtomic,
   updateEstanteLocal,
   type Estante,
   type EstanteConDetalle,
@@ -22,6 +23,8 @@ function generateId(): string {
     return v.toString(16);
   });
 }
+
+let isSyncing = false;
 
 export const estantesService = {
   /**
@@ -236,6 +239,11 @@ export const estantesService = {
    * Descarga todos los estantes y su inventario activo desde Supabase y los guarda en SQLite
    */
   async downloadEstantesFromSupabase(): Promise<boolean> {
+    if (isSyncing) {
+      console.log("🔄 [LogBox-safe] Sincronización en curso, omitiendo llamada duplicada paralela.");
+      return false;
+    }
+    isSyncing = true;
     try {
       if (!supabase) return false;
 
@@ -262,45 +270,44 @@ export const estantesService = {
         return false;
       }
 
-      // Limpiar locales primero
-      await clearEstantesLocales();
+      // Estructurar los estantes para la transacción atómica
+      const estantesList: Estante[] = (estantesData || []).map((e) => ({
+        id: e.id,
+        mac_address: e.mac_address,
+        ubicacion_fisica: e.ubicacion_fisica,
+        esta_abierto: e.esta_abierto ? 1 : 0,
+        alerta_activa: e.alerta_activa ? 1 : 0,
+        ultima_conexion: e.ultima_conexion,
+      }));
 
-      // Insertar estantes en SQLite
-      for (const e of (estantesData || [])) {
-        const estante: Estante = {
-          id: e.id,
-          mac_address: e.mac_address,
-          ubicacion_fisica: e.ubicacion_fisica,
-          esta_abierto: e.esta_abierto ? 1 : 0,
-          alerta_activa: e.alerta_activa ? 1 : 0,
-          ultima_conexion: e.ultima_conexion,
-        };
-        await insertOrReplaceEstante(estante);
-      }
-
-      // Insertar inventarios en SQLite
+      // Estructurar los inventarios para la transacción atómica (ignorando nulos)
+      const invList: InventarioActual[] = [];
       for (const i of (invData || [])) {
-        // Ignorar si el producto_id es nulo o vacío para evitar el crash de NOT NULL constraint en SQLite
         if (!i.producto_id) {
           console.warn(`⚠️ Saltando inventario_actual id ${i.id} porque producto_id es nulo o vacío.`);
           continue;
         }
-        const inv: InventarioActual = {
+        invList.push({
           id: i.id,
           estante_id: i.estante_id,
           producto_id: i.producto_id,
           peso_total_gramos: i.peso_total_gramos || 0.0,
           cantidad_calculada: i.cantidad_calculada || 0,
           ultima_actualizacion: i.ultima_actualizacion,
-        };
-        await insertOrReplaceInventario(inv);
+        });
       }
 
-      console.log(`☁️  Sincronizados ${estantesData?.length} estantes y ${invData?.length} inventarios desde Supabase.`);
-      return true;
+      // Ejecutar sincronización atómica local en SQLite
+      const success = await syncEstantesAtomic(estantesList, invList);
+      if (success) {
+        console.log(`☁️  Sincronizados atómicamente ${estantesList.length} estantes y ${invList.length} inventarios desde Supabase.`);
+      }
+      return success;
     } catch (error) {
       console.log("⚠️ [LogBox-safe] Error en downloadEstantesFromSupabase:", error);
       return false;
+    } finally {
+      isSyncing = false;
     }
   }
 };

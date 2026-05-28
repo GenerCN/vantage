@@ -64,7 +64,7 @@ export async function getEstantesConInventario(): Promise<EstanteConDetalle[]> {
     const result = await db.getAllAsync<EstanteConDetalle>(query);
     return result || [];
   } catch (error) {
-    console.error("Error en SQLite getEstantesConInventario:", error);
+    console.log("⚠️ [LogBox-safe] Error en SQLite getEstantesConInventario:", error);
     return [];
   }
 }
@@ -90,7 +90,7 @@ export async function insertOrReplaceEstante(estante: Estante): Promise<boolean>
     );
     return true;
   } catch (error) {
-    console.error("Error en SQLite insertOrReplaceEstante:", error);
+    console.log("⚠️ [LogBox-safe] Error en SQLite insertOrReplaceEstante:", error);
     return false;
   }
 }
@@ -116,7 +116,7 @@ export async function insertOrReplaceInventario(inv: InventarioActual): Promise<
     );
     return true;
   } catch (error) {
-    console.error("Error en SQLite insertOrReplaceInventario:", error);
+    console.log("⚠️ [LogBox-safe] Error en SQLite insertOrReplaceInventario:", error);
     return false;
   }
 }
@@ -133,7 +133,7 @@ export async function updateEstanteLocal(id: string, ubicacion: string): Promise
     );
     return true;
   } catch (error) {
-    console.error("Error en SQLite updateEstanteLocal:", error);
+    console.log("⚠️ [LogBox-safe] Error en SQLite updateEstanteLocal:", error);
     return false;
   }
 }
@@ -148,7 +148,7 @@ export async function deleteEstanteLocal(id: string): Promise<boolean> {
     await db.runAsync("DELETE FROM inventario_actual WHERE estante_id = ?", [id]);
     return true;
   } catch (error) {
-    console.error("Error en SQLite deleteEstanteLocal:", error);
+    console.log("⚠️ [LogBox-safe] Error en SQLite deleteEstanteLocal:", error);
     return false;
   }
 }
@@ -162,6 +162,63 @@ export async function clearEstantesLocales(): Promise<void> {
     await db.runAsync("DELETE FROM estantes");
     await db.runAsync("DELETE FROM inventario_actual");
   } catch (error) {
-    console.error("Error limpiando estantes locales:", error);
+    console.log("⚠️ [LogBox-safe] Error limpiando estantes locales:", error);
   }
 }
+
+/**
+ * Sincroniza de manera atómica todos los estantes e inventarios en una única transacción SQLite.
+ * Esto previene estados vacíos intermedios que causan que las cards parpadeen o desaparezcan de la UI.
+ */
+export async function syncEstantesAtomic(
+  estantes: Estante[],
+  inventarios: InventarioActual[]
+): Promise<boolean> {
+  try {
+    const db = await getDatabase();
+    await db.withTransactionAsync(async () => {
+      // 1. Limpiar tablas locales
+      await db.runAsync("DELETE FROM estantes");
+      await db.runAsync("DELETE FROM inventario_actual");
+
+      // 2. Insertar estantes nuevos
+      for (const e of estantes) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO estantes 
+           (id, mac_address, ubicacion_fisica, esta_abierto, alerta_activa, ultima_conexion)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            e.id,
+            e.mac_address,
+            e.ubicacion_fisica || null,
+            e.esta_abierto,
+            e.alerta_activa,
+            e.ultima_conexion || new Date().toISOString(),
+          ]
+        );
+      }
+
+      // 3. Insertar inventarios nuevos
+      for (const i of inventarios) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO inventario_actual 
+           (id, estante_id, producto_id, peso_total_gramos, cantidad_calculada, ultima_actualizacion)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            i.id,
+            i.estante_id,
+            i.producto_id,
+            i.peso_total_gramos,
+            i.cantidad_calculada,
+            i.ultima_actualizacion || new Date().toISOString(),
+          ]
+        );
+      }
+    });
+    return true;
+  } catch (error) {
+    console.log("⚠️ [LogBox-safe] Error en SQLite syncEstantesAtomic:", error);
+    return false;
+  }
+}
+
