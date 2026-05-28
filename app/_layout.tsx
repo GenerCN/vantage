@@ -6,8 +6,13 @@ import {
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, View, LogBox } from "react-native";
 import "react-native-reanimated";
+
+// Ignorar alertas y popups del LogBox molestos en desarrollo
+LogBox.ignoreLogs([
+  "AuthApiError: Invalid Refresh Token",
+]);
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/lib/supabase";
@@ -38,11 +43,17 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    // Verificar sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setInitialized(true);
-    });
+    // Verificar sesión inicial de forma segura
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setInitialized(true);
+      })
+      .catch((err) => {
+        console.log("⚠️ [LogBox-safe] Error al recuperar sesión de Supabase:", err);
+        setSession(null);
+        setInitialized(true);
+      });
 
     // Escuchar cambios en la sesión
     const { data: authListener } = supabase.auth.onAuthStateChange(
