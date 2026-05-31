@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Animated, BackHandler, Easing, StatusBar, Text, TouchableOpacity, useColorScheme, useWindowDimensions, View } from "react-native";
+import { Animated, BackHandler, Easing, Platform, StatusBar, Text, TouchableOpacity, useColorScheme, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../styles/StyleIndex";
 
@@ -149,14 +149,6 @@ export default function WelcomeScreen() {
             alignSelf: 'center',
             padding: 12,
             borderRadius: 32,
-            backgroundColor: isDark ? 'rgba(46, 48, 51, 0.4)' : 'rgba(255, 255, 255, 0.9)',
-            borderWidth: 1,
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: isDark ? 0.3 : 0.08,
-            shadowRadius: 12,
-            elevation: 6,
             marginBottom: 25,
           }}>
             <Image

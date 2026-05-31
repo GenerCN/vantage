@@ -34,7 +34,6 @@ yarn-error.*
 Thumbs.db
 
 # pnpm
-.npmrc
 
 # generated native folders
 /ios

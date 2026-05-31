@@ -87,14 +87,6 @@ export default function LoginScreen({ onBack, onRegister }: { onBack?: () => voi
           alignSelf: 'center',
           padding: 12,
           borderRadius: 32,
-          backgroundColor: isDark ? 'rgba(46, 48, 51, 0.4)' : 'rgba(255, 255, 255, 0.9)',
-          borderWidth: 1,
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: isDark ? 0.3 : 0.08,
-          shadowRadius: 12,
-          elevation: 6,
           marginBottom: 25,
         }}>
           <Image
