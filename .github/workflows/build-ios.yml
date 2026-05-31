@@ -48,8 +48,8 @@ jobs:
 
       - name: Compilar App (.app sin firmar)
         run: |
-          xcodebuild -workspace ios/vantage.xcworkspace \
-                     -scheme vantage \
+          xcodebuild -workspace ios/Vantage.xcworkspace \
+                     -scheme Vantage \
                      -configuration Release \
                      -sdk iphoneos \
                      -derivedDataPath build/DerivedData \
@@ -62,12 +62,12 @@ jobs:
       - name: Crear Estructura de IPA
         run: |
           mkdir -p build/Payload
-          cp -r build/DerivedData/Build/Products/Release-iphoneos/vantage.app build/Payload/
+          cp -r build/DerivedData/Build/Products/Release-iphoneos/Vantage.app build/Payload/
           cd build
-          zip -r vantage.ipa Payload
+          zip -r Vantage.ipa Payload
 
       - name: Subir Archivo IPA
         uses: actions/upload-artifact@v4
         with:
-          name: vantage-ios-app
-          path: build/vantage.ipa
+          name: Vantage-iOS-App
+          path: build/Vantage.ipa
