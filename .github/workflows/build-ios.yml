@@ -1,0 +1,72 @@
+name: Compilar IPA de iOS
+on:
+    workflow_dispatch:
+
+env:
+    EXPO_PUBLIC_SUPABASE_URL: "https://pfmiqvmxmfcjchruhnjc.supabase.co"
+    EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_dEiEzmF0zyHmqbQpVdoe_g_uUdWjFK6"
+
+jobs:
+    build:
+        runs-on: macos-latest
+        steps:
+            - name: Clonar Repositorio
+              uses: actions/checkout@v4
+
+            - name: Instalar Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Configurar pnpm de forma segura
+              uses: pnpm/action-setup@v3
+              with:
+                  version: 11
+                  run_install: false
+
+            - name: Obtener directorio del store de pnpm
+              shell: bash
+              run: |
+                  echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+            - name: Configurar caché para pnpm
+              uses: actions/cache@v4
+              with:
+                  path: "${{ env.STORE_PATH }}"
+                  key: "${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}"
+                  restore-keys: "${{ runner.os }}-pnpm-store-"
+
+            - name: Instalar Dependencias
+              run: pnpm install --frozen-lockfile
+
+            - name: Generar Proyecto Nativo iOS
+              run: pnpm dlx expo prebuild --platform ios
+
+            - name: Instalar CocoaPods
+              run: cd ios && pod install
+
+            - name: Compilar App (.app sin firmar)
+              run: |
+                  xcodebuild -workspace ios/vantage.xcworkspace \
+                             -scheme vantage \
+                             -configuration Release \
+                             -sdk iphoneos \
+                             -derivedDataPath build/DerivedData \
+                             CODE_SIGNING_ALLOWED=NO \
+                             CODE_SIGNING_REQUIRED=NO \
+                             CODE_SIGN_IDENTITY="" \
+                             PROVISIONING_PROFILE="" \
+                             clean build
+
+            - name: Crear Estructura de IPA
+              run: |
+                  mkdir -p build/Payload
+                  cp -r build/DerivedData/Build/Products/Release-iphoneos/vantage.app build/Payload/
+                  cd build
+                  zip -r vantage.ipa Payload
+
+            - name: Subir Archivo IPA
+              uses: actions/upload-artifact@v4
+              with:
+                  name: vantage-ios-app
+                  path: build/vantage.ipa
