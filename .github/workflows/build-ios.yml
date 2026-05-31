@@ -17,7 +17,7 @@ jobs:
       - name: Instalar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Configurar pnpm de forma segura
         uses: pnpm/action-setup@v3
@@ -52,6 +52,7 @@ jobs:
                      -scheme vantage \
                      -configuration Release \
                      -sdk iphoneos \
+                     -derivedDataPath build/DerivedData \
                      CODE_SIGNING_ALLOWED=NO \
                      CODE_SIGNING_REQUIRED=NO \
                      CODE_SIGN_IDENTITY="" \
@@ -61,7 +62,7 @@ jobs:
       - name: Crear Estructura de IPA
         run: |
           mkdir -p build/Payload
-          cp -r ~/Library/Developer/Xcode/DerivedData/*/Build/Products/Release-iphoneos/vantage.app build/Payload/
+          cp -r build/DerivedData/Build/Products/Release-iphoneos/vantage.app build/Payload/
           cd build
           zip -r vantage.ipa Payload
 
